@@ -10,11 +10,13 @@ import {
   Camera,
   Play,
   Pause,
-  FastForward,
   Navigation,
   Compass,
+  Radio,
   Layers,
-  MapPin,
+  Activity,
+  Crosshair,
+  Building2,
   Eye,
 } from 'lucide-react';
 
@@ -24,6 +26,7 @@ interface CitySceneProps {
   assignments?: VehicleRouteAssignment[];
   selectedVehicleId?: string | null;
   onSelectVehicle?: (vehicleId: string) => void;
+  viewMode?: '3d' | 'satellite';
 }
 
 // Convert geographic coordinates to 3D local city coordinates
@@ -47,12 +50,10 @@ function createFacadeTexture(seedIndex: number, isNight: boolean): THREE.CanvasT
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  // Facade base wall color
   const baseColors = ['#18202F', '#0F172A', '#1E293B', '#1C1917'];
   ctx.fillStyle = isNight ? baseColors[seedIndex % baseColors.length] : '#334155';
   ctx.fillRect(0, 0, 128, 256);
 
-  // Window grid configuration
   const cols = 8;
   const rows = 18;
   const wWidth = 9;
@@ -85,8 +86,66 @@ function createFacadeTexture(seedIndex: number, isNight: boolean): THREE.CanvasT
   return texture;
 }
 
-// Procedural City Buildings with Architectural Variety & Rooftop Infrastructure
-const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
+// Motion Graphics: Sweeping Orbital Satellite Laser Scanning Beam
+const SatelliteScannerBeam: React.FC = () => {
+  const beamRef = useRef<THREE.Mesh>(null);
+  const glowRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    const z = Math.sin(t * 0.75) * 115;
+    if (beamRef.current) {
+      beamRef.current.position.z = z;
+    }
+    if (glowRef.current) {
+      glowRef.current.position.z = z;
+    }
+  });
+
+  return (
+    <group>
+      {/* Sharp Laser Line */}
+      <mesh ref={beamRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.45, 0]}>
+        <planeGeometry args={[260, 2.5]} />
+        <meshBasicMaterial color="#10B981" transparent opacity={0.7} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Diffused Light Sweep Glow */}
+      <mesh ref={glowRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.42, 0]}>
+        <planeGeometry args={[260, 16]} />
+        <meshBasicMaterial color="#059669" transparent opacity={0.2} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+};
+
+// Motion Graphics: Disruption Hazard Zone Holographic Warning Rings
+const DisruptionHazardZone: React.FC<{ position: [number, number, number] }> = ({ position }) => {
+  const ringRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (ringRef.current) {
+      const t = clock.getElapsedTime();
+      const s = 1 + (Math.sin(t * 3) + 1) * 0.35;
+      ringRef.current.scale.set(s, s, 1);
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.3, 0]}>
+        <ringGeometry args={[14, 16.5, 32]} />
+        <meshBasicMaterial color="#EF4444" transparent opacity={0.65} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.25, 0]}>
+        <circleGeometry args={[14, 32]} />
+        <meshBasicMaterial color="#EF4444" transparent opacity={0.12} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+};
+
+// Procedural City Buildings
+const CityBuildings: React.FC<{ isNight: boolean; isSatellite: boolean }> = ({ isNight, isSatellite }) => {
   const textures = useMemo(() => {
     return [
       createFacadeTexture(0, isNight),
@@ -103,14 +162,11 @@ const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
 
     for (let i = -gridSize; i <= gridSize; i++) {
       for (let j = -gridSize; j <= gridSize; j++) {
-        // Leave central plaza open for the distribution depot and main arteries
         if (Math.abs(i) <= 1 && Math.abs(j) <= 1) continue;
-        if (i === 0 || j === 0) continue; // main thoroughfare avenues
+        if (i === 0 || j === 0) continue;
 
         const seed = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453;
         const rand = seed - Math.floor(seed);
-
-        // Turn some blocks into urban parks with greenery
         const isPark = rand < 0.22 && (Math.abs(i) > 2 || Math.abs(j) > 2);
 
         if (isPark) {
@@ -124,8 +180,8 @@ const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
           });
         } else if (rand > 0.3) {
           const height = 8 + rand * 32;
-          const width = 8 + (rand * 5);
-          const depth = 8 + ((1 - rand) * 5);
+          const width = 8 + rand * 5;
+          const depth = 8 + (1 - rand) * 5;
           const x = i * spacing;
           const z = j * spacing;
           const textureIndex = Math.floor(rand * textures.length);
@@ -154,12 +210,13 @@ const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
         if (b.isPark) {
           return (
             <group key={b.id} position={[b.x, 0.05, b.z]}>
-              {/* Park Lawn */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
                 <planeGeometry args={[b.width, b.depth]} />
-                <meshStandardMaterial color={isNight ? '#143823' : '#22C55E'} roughness={0.9} />
+                <meshStandardMaterial
+                  color={isSatellite ? '#064E3B' : isNight ? '#143823' : '#22C55E'}
+                  roughness={0.9}
+                />
               </mesh>
-              {/* Park Trees */}
               {[
                 [-3, -3],
                 [3, -3],
@@ -168,15 +225,16 @@ const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
                 [0, 0],
               ].map(([tx, tz], ti) => (
                 <group key={ti} position={[tx, 0, tz]}>
-                  {/* Trunk */}
                   <mesh position={[0, 0.75, 0]}>
                     <cylinderGeometry args={[0.2, 0.3, 1.5, 6]} />
                     <meshStandardMaterial color="#451A03" roughness={0.9} />
                   </mesh>
-                  {/* Foliage */}
                   <mesh position={[0, 2.2, 0]} castShadow>
                     <dodecahedronGeometry args={[1.1, 0]} />
-                    <meshStandardMaterial color={isNight ? '#166534' : '#15803D'} roughness={0.8} />
+                    <meshStandardMaterial
+                      color={isSatellite ? '#047857' : isNight ? '#166534' : '#15803D'}
+                      roughness={0.8}
+                    />
                   </mesh>
                 </group>
               ))}
@@ -188,24 +246,30 @@ const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
 
         return (
           <group key={b.id} position={[b.x, 0, b.z]}>
-            {/* Main Skyscraper Body */}
             <mesh position={[0, (b.height || 10) / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[b.width, b.height, b.depth]} />
               <meshStandardMaterial
-                map={tex}
-                roughness={0.4}
-                metalness={0.6}
-                color={isNight ? '#FFFFFF' : '#CBD5E1'}
+                map={isSatellite ? undefined : tex}
+                color={isSatellite ? '#0F172A' : isNight ? '#FFFFFF' : '#CBD5E1'}
+                roughness={isSatellite ? 0.2 : 0.4}
+                metalness={isSatellite ? 0.8 : 0.6}
+                wireframe={false}
               />
             </mesh>
 
-            {/* Rooftop Trim & HVAC Unit */}
+            {/* Satellite Grid Overlay on Rooftops */}
+            {isSatellite && (
+              <mesh position={[0, (b.height || 10) + 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[(b.width || 8) * 0.9, (b.depth || 8) * 0.9]} />
+                <meshBasicMaterial color="#10B981" wireframe transparent opacity={0.4} />
+              </mesh>
+            )}
+
             <mesh position={[0, (b.height || 10) + 0.6, 0]}>
               <boxGeometry args={[(b.width || 8) * 0.8, 1.2, (b.depth || 8) * 0.8]} />
               <meshStandardMaterial color="#0F172A" roughness={0.7} />
             </mesh>
 
-            {/* Rooftop Aircraft Beacon for Skyscrapers */}
             {b.hasBeacon && (
               <group position={[0, (b.height || 10) + 2.5, 0]}>
                 <mesh>
@@ -215,9 +279,9 @@ const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
                 <mesh position={[0, 1.6, 0]}>
                   <sphereGeometry args={[0.35]} />
                   <meshStandardMaterial
-                    color="#EF4444"
-                    emissive="#EF4444"
-                    emissiveIntensity={isNight ? 1.5 : 0.8}
+                    color={isSatellite ? '#10B981' : '#EF4444'}
+                    emissive={isSatellite ? '#10B981' : '#EF4444'}
+                    emissiveIntensity={isNight || isSatellite ? 2.0 : 0.8}
                   />
                 </mesh>
               </group>
@@ -230,46 +294,39 @@ const CityBuildings: React.FC<{ isNight: boolean }> = ({ isNight }) => {
 };
 
 // Central Logistics Fulfillment Depot
-const CentralDepotModel: React.FC<{ isNight: boolean }> = ({ isNight }) => {
+const CentralDepotModel: React.FC<{ isNight: boolean; isSatellite: boolean }> = ({ isNight, isSatellite }) => {
   return (
     <group position={[0, 0, 0]}>
-      {/* Ground Concrete Apron */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]} receiveShadow>
         <planeGeometry args={[36, 36]} />
-        <meshStandardMaterial color={isNight ? '#262626' : '#E2E8F0'} roughness={0.6} />
+        <meshStandardMaterial color={isSatellite ? '#0F172A' : isNight ? '#262626' : '#E2E8F0'} roughness={0.6} />
       </mesh>
 
-      {/* Main Logistics Warehouse Building */}
       <mesh position={[0, 3, 0]} castShadow receiveShadow>
         <boxGeometry args={[22, 6, 20]} />
         <meshStandardMaterial color="#382416" roughness={0.5} metalness={0.3} />
       </mesh>
 
-      {/* Roof Deck */}
       <mesh position={[0, 6.4, 0]}>
         <boxGeometry args={[20, 0.8, 18]} />
         <meshStandardMaterial color="#5B3925" />
       </mesh>
 
-      {/* Roll-Up Loading Dock Bays */}
+      {/* Dock Bays */}
       {[-6, -2, 2, 6].map((x, i) => (
         <group key={i} position={[x, 1.5, 10.05]}>
           <mesh>
             <planeGeometry args={[2.8, 3]} />
             <meshStandardMaterial
               color="#A66B38"
-              emissive={isNight ? '#A66B38' : '#000000'}
-              emissiveIntensity={isNight ? 0.4 : 0}
+              emissive={isNight || isSatellite ? '#A66B38' : '#000000'}
+              emissiveIntensity={isNight || isSatellite ? 0.4 : 0}
             />
-          </mesh>
-          <mesh position={[0, 1.8, 0.1]}>
-            <boxGeometry args={[2.8, 0.3, 0.1]} />
-            <meshStandardMaterial color="#FEF08A" />
           </mesh>
         </group>
       ))}
 
-      {/* Communications & GPS Command Tower */}
+      {/* GPS Command Tower */}
       <group position={[7, 9, -6]}>
         <mesh>
           <cylinderGeometry args={[0.3, 0.5, 6, 8]} />
@@ -280,28 +337,28 @@ const CentralDepotModel: React.FC<{ isNight: boolean }> = ({ isNight }) => {
           <meshStandardMaterial
             color="#22C55E"
             emissive="#22C55E"
-            emissiveIntensity={isNight ? 1.8 : 0.8}
+            emissiveIntensity={isNight || isSatellite ? 2.0 : 0.8}
           />
         </mesh>
       </group>
 
-      {/* Holographic Depot Label */}
-      <Html position={[0, 9, 0]} center distanceFactor={140}>
-        <div className="bg-[#382416]/90 backdrop-blur-md px-3 py-1 rounded-full border border-[#D4A373] text-[#FFF9F0] text-xs font-bold shadow-lg flex items-center gap-1.5 whitespace-nowrap pointer-events-none select-none">
+      <Html position={[0, 9.5, 0]} center distanceFactor={140}>
+        <div className="bg-[#1E293B]/95 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/60 text-[#FFF9F0] text-xs font-bold shadow-lg flex items-center gap-1.5 whitespace-nowrap pointer-events-none select-none font-mono">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          RouteRescue Fulfillment Depot
+          BASE LOGISTICS HUB // DEPOT-01
         </div>
       </Html>
     </group>
   );
 };
 
-// Realistic Delivery Stop Waypoint Pin
+// Delivery Stop Waypoint Pin
 const DeliveryStopPin: React.FC<{
   stop: DeliveryStop;
   position: [number, number, number];
   isNight: boolean;
-}> = ({ stop, position, isNight }) => {
+  isSatellite: boolean;
+}> = ({ stop, position, isNight, isSatellite }) => {
   const pinRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
 
@@ -322,7 +379,6 @@ const DeliveryStopPin: React.FC<{
 
   return (
     <group position={[position[0], 0, position[2]]}>
-      {/* Ground Pulsing Target Ring */}
       <mesh
         ref={ringRef}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -332,29 +388,27 @@ const DeliveryStopPin: React.FC<{
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={isNight ? 0.7 : 0.5}
+          opacity={isNight || isSatellite ? 0.8 : 0.5}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Vertical Holographic Light Beam */}
       <mesh position={[0, 4, 0]}>
         <cylinderGeometry args={[0.08, 0.3, 8, 12]} />
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={isNight ? 0.45 : 0.25}
+          opacity={isNight || isSatellite ? 0.5 : 0.25}
         />
       </mesh>
 
-      {/* Floating Rotating Waypoint Diamond */}
       <group ref={pinRef}>
         <mesh castShadow>
           <octahedronGeometry args={[1.1, 0]} />
           <meshStandardMaterial
             color={color}
             emissive={color}
-            emissiveIntensity={isNight ? 0.8 : 0.4}
+            emissiveIntensity={isNight || isSatellite ? 1.0 : 0.4}
             metalness={0.7}
             roughness={0.2}
           />
@@ -364,13 +418,14 @@ const DeliveryStopPin: React.FC<{
   );
 };
 
-// Detailed 3D Delivery Van Model
+// Realistic Delivery Van Model
 const RealisticDeliveryVan: React.FC<{
   assignment: VehicleRouteAssignment;
   isSelected: boolean;
   color: string;
   speedMultiplier: number;
   isNight: boolean;
+  isSatellite: boolean;
   onSelect: () => void;
   onUpdatePosition?: (pos: THREE.Vector3, heading: number) => void;
 }> = ({
@@ -379,6 +434,7 @@ const RealisticDeliveryVan: React.FC<{
   color,
   speedMultiplier,
   isNight,
+  isSatellite,
   onSelect,
   onUpdatePosition,
 }) => {
@@ -409,7 +465,6 @@ const RealisticDeliveryVan: React.FC<{
 
     meshRef.current.position.set(x, 0.8, z);
 
-    // Compute heading direction with smooth rotation
     const dx = pB[0] - pA[0];
     const dz = pB[2] - pA[2];
     let targetHeading = 0;
@@ -438,8 +493,8 @@ const RealisticDeliveryVan: React.FC<{
           color={color}
           roughness={0.25}
           metalness={0.6}
-          emissive={isSelected ? color : '#000000'}
-          emissiveIntensity={isSelected ? 0.35 : 0}
+          emissive={isSelected ? color : isSatellite ? '#064E3B' : '#000000'}
+          emissiveIntensity={isSelected ? 0.4 : isSatellite ? 0.3 : 0}
         />
       </mesh>
 
@@ -467,20 +522,20 @@ const RealisticDeliveryVan: React.FC<{
             <cylinderGeometry args={[0.42, 0.42, 0.35, 16]} />
             <meshStandardMaterial color="#0F172A" roughness={0.9} />
           </mesh>
-          <mesh rotation={[0, 0, Math.PI / 2]} position={[0, 0, 0]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.22, 0.22, 0.37, 8]} />
             <meshStandardMaterial color="#E2E8F0" metalness={0.9} />
           </mesh>
         </group>
       ))}
 
-      {/* Dual Forward Headlights & Road Light Beams */}
+      {/* Headlights */}
       <mesh position={[-0.8, 0.6, 2.5]}>
         <sphereGeometry args={[0.18]} />
         <meshStandardMaterial
           color="#FEF08A"
           emissive="#FEF08A"
-          emissiveIntensity={isNight ? 2.5 : 1.0}
+          emissiveIntensity={isNight || isSatellite ? 2.5 : 1.0}
         />
       </mesh>
       <mesh position={[0.8, 0.6, 2.5]}>
@@ -488,82 +543,74 @@ const RealisticDeliveryVan: React.FC<{
         <meshStandardMaterial
           color="#FEF08A"
           emissive="#FEF08A"
-          emissiveIntensity={isNight ? 2.5 : 1.0}
+          emissiveIntensity={isNight || isSatellite ? 2.5 : 1.0}
         />
       </mesh>
 
-      {/* Headlight Cones projecting forward on road */}
-      {isNight && (
-        <mesh position={[0, 0.4, 6]} rotation={[Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[2.5, 8, 16]} />
-          <meshBasicMaterial color="#FEF08A" transparent opacity={0.12} />
-        </mesh>
-      )}
-
-      {/* Dual Red Brake Taillights */}
+      {/* Taillights */}
       <mesh position={[-0.9, 0.6, -2.12]}>
         <boxGeometry args={[0.35, 0.2, 0.1]} />
-        <meshStandardMaterial color="#EF4444" emissive="#EF4444" emissiveIntensity={isNight ? 2 : 1} />
+        <meshStandardMaterial color="#EF4444" emissive="#EF4444" emissiveIntensity={2} />
       </mesh>
       <mesh position={[0.9, 0.6, -2.12]}>
         <boxGeometry args={[0.35, 0.2, 0.1]} />
-        <meshStandardMaterial color="#EF4444" emissive="#EF4444" emissiveIntensity={isNight ? 2 : 1} />
+        <meshStandardMaterial color="#EF4444" emissive="#EF4444" emissiveIntensity={2} />
       </mesh>
 
-      {/* Rooftop RouteRescue AI Antenna */}
-      <mesh position={[0, 2.15, -0.4]}>
-        <cylinderGeometry args={[0.08, 0.08, 0.4, 6]} />
-        <meshStandardMaterial color="#E2E8F0" />
-      </mesh>
-      <mesh position={[0, 2.4, -0.4]}>
-        <sphereGeometry args={[0.18]} />
-        <meshStandardMaterial
-          color={isSelected ? '#EF4444' : '#22C55E'}
-          emissive={isSelected ? '#EF4444' : '#22C55E'}
-          emissiveIntensity={1.5}
-        />
-      </mesh>
-
-      {/* Floating Vehicle Unit HUD Tag */}
-      <Html position={[0, 3.2, 0]} center distanceFactor={120}>
-        <div
-          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-md transition-all whitespace-nowrap pointer-events-none select-none flex items-center gap-1 ${
-            isSelected
-              ? 'bg-[#B71C1C] text-white ring-2 ring-white scale-110'
-              : 'bg-[#382416]/90 text-[#FFF9F0] border border-[#5B3925]'
-          }`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          {assignment.vehicleName}
-        </div>
-      </Html>
+      {/* Satellite Mode Motion Graphic: High-Tech Targeting Reticle */}
+      {isSatellite ? (
+        <Html position={[0, 3.6, 0]} center distanceFactor={110}>
+          <div className="bg-slate-950/95 backdrop-blur-md px-2.5 py-1 rounded border border-emerald-500/80 text-emerald-400 font-mono text-[9px] shadow-2xl flex items-center gap-1.5 whitespace-nowrap pointer-events-none select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <span className="font-black text-white">{assignment.vehicleName.split(' ')[0]}</span>
+            <span>|</span>
+            <span className="text-emerald-300">48 KM/H</span>
+            <span>|</span>
+            <span className="text-amber-400">{assignment.stopsCount} STOPS</span>
+          </div>
+        </Html>
+      ) : (
+        <Html position={[0, 3.2, 0]} center distanceFactor={120}>
+          <div
+            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-md transition-all whitespace-nowrap pointer-events-none select-none flex items-center gap-1 ${
+              isSelected
+                ? 'bg-[#B71C1C] text-white ring-2 ring-white scale-110'
+                : 'bg-[#382416]/90 text-[#FFF9F0] border border-[#5B3925]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {assignment.vehicleName}
+          </div>
+        </Html>
+      )}
     </group>
   );
 };
 
-// 3D Glowing Route Polyline with Animated Energy Pulse
+// 3D Glowing Route Polyline
 const GlowingRoutePolyline: React.FC<{
   points: [number, number, number][];
   color: string;
   isSelected: boolean;
   isNight: boolean;
-}> = ({ points, color, isSelected, isNight }) => {
+  isSatellite: boolean;
+}> = ({ points, color, isSelected, isNight, isSatellite }) => {
   const lineObject = useMemo(() => {
     const vectors = points.map((p) => new THREE.Vector3(p[0], 0.35, p[2]));
     const geometry = new THREE.BufferGeometry().setFromPoints(vectors);
     const material = new THREE.LineBasicMaterial({
-      color: isSelected ? '#EF4444' : color,
+      color: isSelected ? '#EF4444' : isSatellite ? '#10B981' : color,
       linewidth: isSelected ? 4 : 2,
       transparent: true,
-      opacity: isSelected ? 1.0 : isNight ? 0.8 : 0.65,
+      opacity: isSelected ? 1.0 : isNight || isSatellite ? 0.85 : 0.65,
     });
     return new THREE.Line(geometry, material);
-  }, [points, color, isSelected, isNight]);
+  }, [points, color, isSelected, isNight, isSatellite]);
 
   return <primitive object={lineObject} />;
 };
 
-// Camera Controller for Free Orbit vs Cinematic Chase Cam
+// Camera Controller
 const CameraController: React.FC<{
   cameraMode: 'orbit' | 'chase' | 'tactical' | 'depot';
   targetPos: THREE.Vector3 | null;
@@ -573,7 +620,6 @@ const CameraController: React.FC<{
 
   useFrame(() => {
     if (cameraMode === 'chase' && targetPos) {
-      // Smoothly place camera behind and slightly above the selected vehicle
       const dist = 24;
       const height = 14;
       const cx = targetPos.x - Math.sin(targetHeading) * dist;
@@ -600,101 +646,111 @@ export const CityScene: React.FC<CitySceneProps> = ({
   assignments = [],
   selectedVehicleId,
   onSelectVehicle,
+  viewMode = '3d',
 }) => {
   const colors = ['#A66B38', '#1565C0', '#2E7D32', '#7B1FA2', '#D97706'];
 
   // Scene Controls State
+  const [internalMode, setInternalMode] = useState<'3d' | 'satellite'>(viewMode);
   const [timeMode, setTimeMode] = useState<'night' | 'sunset' | 'day'>('night');
   const [cameraMode, setCameraMode] = useState<'orbit' | 'chase' | 'tactical' | 'depot'>('orbit');
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [paused, setPaused] = useState(false);
 
-  // Active Vehicle Tracking Coordinates for Chase Cam
+  // Sync prop changes
+  useEffect(() => {
+    if (viewMode) setInternalMode(viewMode);
+  }, [viewMode]);
+
   const [activeVehiclePos, setActiveVehiclePos] = useState<THREE.Vector3 | null>(null);
   const [activeVehicleHeading, setActiveVehicleHeading] = useState<number>(0);
 
-  // If a vehicle is selected, default chase view to it if user toggles chase
-  useEffect(() => {
-    if (selectedVehicleId && cameraMode === 'chase') {
-      // already in chase
-    }
-  }, [selectedVehicleId, cameraMode]);
-
+  const isSatellite = internalMode === 'satellite';
   const isNight = timeMode === 'night';
   const isSunset = timeMode === 'sunset';
 
-  // Extract all unique delivery stops from assignments if direct stops not passed
   const allStops = useMemo(() => {
     if (stops && stops.length > 0) return stops;
     return assignments.flatMap((a) => a.stops.map((s) => s.deliveryStop));
   }, [stops, assignments]);
 
+  // Check if there is an active disruption scenario in localStorage
+  const activeScenarioStored = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('routerescue_active_scenario');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   return (
-    <div className="w-full h-[620px] bg-[#0F172A] rounded-2xl overflow-hidden border border-[#5B3925] shadow-warm-xl relative select-none">
+    <div className="w-full h-[620px] bg-[#020617] rounded-2xl overflow-hidden border border-[#5B3925] shadow-warm-xl relative select-none">
       <Canvas
         camera={{ position: [85, 80, 95], fov: 45 }}
         shadows
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       >
-        {/* Sky Background & Atmospheric Fog */}
         <color
           attach="background"
-          args={[isNight ? '#0B0F19' : isSunset ? '#2C1B18' : '#60A5FA']}
+          args={[isSatellite ? '#020617' : isNight ? '#0B0F19' : isSunset ? '#2C1B18' : '#60A5FA']}
         />
         <fog
           attach="fog"
           args={[
-            isNight ? '#0B0F19' : isSunset ? '#2C1B18' : '#93C5FD',
+            isSatellite ? '#020617' : isNight ? '#0B0F19' : isSunset ? '#2C1B18' : '#93C5FD',
             60,
             260,
           ]}
         />
 
         {/* Dynamic Sun & Skylight */}
-        <ambientLight intensity={isNight ? 0.35 : isSunset ? 0.7 : 0.9} />
+        <ambientLight intensity={isSatellite ? 0.45 : isNight ? 0.35 : isSunset ? 0.7 : 0.9} />
         <hemisphereLight
           args={[
-            isNight ? '#1E293B' : isSunset ? '#F97316' : '#BAE6FD',
-            isNight ? '#0F172A' : '#78350F',
-            isNight ? 0.4 : 0.8,
+            isSatellite ? '#064E3B' : isNight ? '#1E293B' : isSunset ? '#F97316' : '#BAE6FD',
+            isSatellite ? '#020617' : isNight ? '#0F172A' : '#78350F',
+            isSatellite ? 0.6 : isNight ? 0.4 : 0.8,
           ]}
         />
 
         <directionalLight
           position={isSunset ? [120, 45, 60] : [90, 130, 80]}
-          intensity={isNight ? 0.9 : isSunset ? 1.8 : 1.4}
-          color={isSunset ? '#FDBA74' : '#FFFFFF'}
+          intensity={isSatellite ? 1.2 : isNight ? 0.9 : isSunset ? 1.8 : 1.4}
+          color={isSunset ? '#FDBA74' : isSatellite ? '#E2E8F0' : '#FFFFFF'}
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
           shadow-camera-far={320}
-          shadow-camera-left={-110}
-          shadow-camera-right={110}
-          shadow-camera-top={110}
-          shadow-camera-bottom={-110}
-        />
-
-        {/* Ambient Bounce Light */}
-        <directionalLight
-          position={[-70, 40, -50]}
-          intensity={isNight ? 0.3 : 0.5}
-          color="#A66B38"
         />
 
         {/* City Asphalt Ground Plane */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <planeGeometry args={[500, 500]} />
           <meshStandardMaterial
-            color={isNight ? '#0F172A' : isSunset ? '#1E293B' : '#334155'}
+            color={isSatellite ? '#020617' : isNight ? '#0F172A' : isSunset ? '#1E293B' : '#334155'}
             roughness={0.85}
           />
         </mesh>
 
+        {/* Satellite Mode: High-Tech Coordinate Grid Terrain */}
+        {isSatellite && (
+          <gridHelper args={[320, 32, '#059669', '#064E3B']} position={[0, 0.1, 0]} />
+        )}
+
+        {/* Satellite Mode: Sweeping Green Laser Scanner Beam */}
+        {isSatellite && <SatelliteScannerBeam />}
+
+        {/* Disruption Hazard Zones if scenario active */}
+        {activeScenarioStored && (
+          <DisruptionHazardZone position={[15, 0, -25]} />
+        )}
+
         {/* Central Fulfillment Hub */}
-        <CentralDepotModel isNight={isNight} />
+        <CentralDepotModel isNight={isNight} isSatellite={isSatellite} />
 
         {/* Procedural City Skyline */}
-        <CityBuildings isNight={isNight} />
+        <CityBuildings isNight={isNight} isSatellite={isSatellite} />
 
         {/* Delivery Waypoint Markers */}
         {allStops.map((stop) => {
@@ -705,6 +761,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
               stop={stop}
               position={pos}
               isNight={isNight}
+              isSatellite={isSatellite}
             />
           );
         })}
@@ -724,6 +781,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
                   color={color}
                   isSelected={isSelected}
                   isNight={isNight}
+                  isSatellite={isSatellite}
                 />
               )}
               <RealisticDeliveryVan
@@ -732,6 +790,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
                 color={color}
                 speedMultiplier={paused ? 0 : speedMultiplier}
                 isNight={isNight}
+                isSatellite={isSatellite}
                 onSelect={() => onSelectVehicle && onSelectVehicle(a.vehicleId)}
                 onUpdatePosition={(pos, heading) => {
                   if (isSelected) {
@@ -744,7 +803,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
           );
         })}
 
-        {/* Dynamic Camera Control Mode */}
+        {/* Camera Control Mode */}
         {cameraMode === 'orbit' && (
           <OrbitControls
             enableDamping
@@ -762,15 +821,74 @@ export const CityScene: React.FC<CitySceneProps> = ({
         />
       </Canvas>
 
-      {/* Top Left: Interactive Status HUD & Camera Controls */}
-      <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-auto">
-        <div className="bg-[#1E293B]/90 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-slate-700/80 text-white shadow-xl flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold tracking-tight text-slate-100">
-              3D Smart City Digital Twin
+      {/* Satellite Mode: Real-Time Motion Graphics HUD Overlay */}
+      {isSatellite && (
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Top Orbital Telemetry HUD */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-950/85 backdrop-blur-md px-5 py-2 rounded-2xl border border-emerald-500/50 shadow-2xl flex items-center gap-4 text-emerald-400 font-mono text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="font-black text-white tracking-widest uppercase">
+                🛰️ ORBITAL SATELLITE RECONNAISSANCE FEED // SAT-GEO-09
+              </span>
+            </div>
+            <div className="h-4 w-[1px] bg-emerald-800" />
+            <div className="text-[11px] text-slate-300">
+              LAT: 37.7780° N | LON: 122.4075° W | ALT: 412.5 KM
+            </div>
+            <div className="h-4 w-[1px] bg-emerald-800" />
+            <span className="text-emerald-300 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/60">
+              SUB-METER RESOLUTION LOCKED
             </span>
           </div>
+
+          {/* Animated Tactical Corner Radar Display */}
+          <div className="absolute top-4 right-4 bg-slate-950/90 backdrop-blur-md p-3 rounded-2xl border border-emerald-500/50 shadow-2xl flex flex-col items-center gap-1 font-mono text-[10px] text-emerald-400">
+            <div className="relative w-16 h-16 rounded-full border border-emerald-500/60 flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-1 rounded-full border border-emerald-500/30" />
+              <div className="absolute inset-x-0 h-[1px] bg-emerald-500/40" />
+              <div className="absolute inset-y-0 w-[1px] bg-emerald-500/40" />
+              {/* Rotating radar sweep arm */}
+              <div className="absolute w-8 h-8 top-0 right-0 origin-bottom-left bg-gradient-to-tr from-transparent to-emerald-400/40 animate-spin" />
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            </div>
+            <span className="font-bold text-slate-200 mt-1">RADAR AZ: 214°</span>
+            <span className="text-[9px] text-emerald-300">ELEV: 52° • 6 TARGETS</span>
+          </div>
+
+          {/* Corner Tactical Brackets */}
+          <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-emerald-400 opacity-60" />
+          <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-emerald-400 opacity-60" />
+          <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-emerald-400 opacity-60" />
+        </div>
+      )}
+
+      {/* Top Left: Mode & Camera Toolbar */}
+      <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-auto z-20">
+        <div className="bg-[#1E293B]/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 text-white shadow-xl flex items-center gap-2">
+          {/* 3D vs Satellite Mode Switcher */}
+          <button
+            onClick={() => setInternalMode('3d')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              !isSatellite
+                ? 'bg-[#5B3925] text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            3D City
+          </button>
+          <button
+            onClick={() => setInternalMode('satellite')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              isSatellite
+                ? 'bg-emerald-600 text-white shadow ring-2 ring-emerald-400'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-300" />
+            Satellite View
+          </button>
 
           <div className="h-4 w-[1px] bg-slate-700" />
 
@@ -779,9 +897,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
             <button
               onClick={() => setTimeMode('night')}
               className={`p-1.5 rounded-md transition-all ${
-                timeMode === 'night'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                timeMode === 'night' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
               title="Night / Neon Smart City View"
             >
@@ -790,9 +906,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
             <button
               onClick={() => setTimeMode('sunset')}
               className={`p-1.5 rounded-md transition-all ${
-                timeMode === 'sunset'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                timeMode === 'sunset' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
               title="Golden Hour Sunset"
             >
@@ -801,9 +915,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
             <button
               onClick={() => setTimeMode('day')}
               className={`p-1.5 rounded-md transition-all ${
-                timeMode === 'day'
-                  ? 'bg-sky-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                timeMode === 'day' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
               title="Clear Daylight Mode"
             >
@@ -821,12 +933,10 @@ export const CityScene: React.FC<CitySceneProps> = ({
           <button
             onClick={() => setCameraMode('orbit')}
             className={`px-2.5 py-1 rounded-lg transition-all ${
-              cameraMode === 'orbit'
-                ? 'bg-[#5B3925] text-white shadow'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              cameraMode === 'orbit' ? 'bg-[#5B3925] text-white shadow' : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
-            Free Orbit
+            Orbit
           </button>
 
           <button
@@ -841,29 +951,25 @@ export const CityScene: React.FC<CitySceneProps> = ({
                 ? 'bg-emerald-700 text-white shadow ring-1 ring-emerald-400'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
-            title="Smoothly track and follow the active delivery van"
+            title="Follow active van"
           >
-            <Navigation className="w-3 h-3 text-emerald-400 animate-spin" />
+            <Navigation className="w-3 h-3 text-emerald-400" />
             Follow Van
           </button>
 
           <button
             onClick={() => setCameraMode('tactical')}
             className={`px-2.5 py-1 rounded-lg transition-all ${
-              cameraMode === 'tactical'
-                ? 'bg-[#5B3925] text-white shadow'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              cameraMode === 'tactical' ? 'bg-[#5B3925] text-white shadow' : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
-            Top Tactical
+            Top Down
           </button>
 
           <button
             onClick={() => setCameraMode('depot')}
             className={`px-2.5 py-1 rounded-lg transition-all ${
-              cameraMode === 'depot'
-                ? 'bg-[#5B3925] text-white shadow'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              cameraMode === 'depot' ? 'bg-[#5B3925] text-white shadow' : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
             Hub Focus
@@ -871,54 +977,55 @@ export const CityScene: React.FC<CitySceneProps> = ({
         </div>
       </div>
 
-      {/* Top Right: Simulation Speed Multiplier Controls */}
-      <div className="absolute top-4 right-4 bg-[#1E293B]/85 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 text-white shadow-xl flex items-center gap-2 pointer-events-auto">
-        <button
-          onClick={() => setPaused(!paused)}
-          className={`p-1.5 rounded-lg transition-all ${
-            paused ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'
-          }`}
-          title={paused ? 'Resume fleet movement' : 'Pause fleet'}
-        >
-          {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-        </button>
+      {/* Top Right: Speed Multiplier Controls (only in 3D mode) */}
+      {!isSatellite && (
+        <div className="absolute top-4 right-4 bg-[#1E293B]/85 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 text-white shadow-xl flex items-center gap-2 pointer-events-auto z-20">
+          <button
+            onClick={() => setPaused(!paused)}
+            className={`p-1.5 rounded-lg transition-all ${
+              paused ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'
+            }`}
+          >
+            {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+          </button>
 
-        <div className="h-4 w-[1px] bg-slate-700" />
+          <div className="h-4 w-[1px] bg-slate-700" />
 
-        <div className="flex items-center gap-1 text-xs font-bold">
-          {[1, 2, 4].map((spd) => (
-            <button
-              key={spd}
-              onClick={() => {
-                setSpeedMultiplier(spd);
-                setPaused(false);
-              }}
-              className={`px-2 py-1 rounded-md transition-all ${
-                speedMultiplier === spd && !paused
-                  ? 'bg-[#5B3925] text-white shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {spd}x
-            </button>
-          ))}
+          <div className="flex items-center gap-1 text-xs font-bold">
+            {[1, 2, 4].map((spd) => (
+              <button
+                key={spd}
+                onClick={() => {
+                  setSpeedMultiplier(spd);
+                  setPaused(false);
+                }}
+                className={`px-2 py-1 rounded-md transition-all ${
+                  speedMultiplier === spd && !paused
+                    ? 'bg-[#5B3925] text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {spd}x
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Bottom Center: Fleet Telemetry & Instructions Overlay */}
-      <div className="absolute bottom-4 inset-x-4 flex justify-between items-end pointer-events-none">
+      {/* Bottom Center: Fleet Telemetry */}
+      <div className="absolute bottom-4 inset-x-4 flex justify-between items-end pointer-events-none z-20">
         <div className="bg-[#1E293B]/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700 text-white text-[11px] shadow-lg pointer-events-auto">
-          <div className="font-semibold text-slate-300 flex items-center gap-2">
-            <span>🖱️ Left Click + Drag: Orbit Camera</span>
+          <div className="font-semibold text-slate-300 flex items-center gap-2 font-mono">
+            <span>🖱️ Left Click: Orbit</span>
             <span>•</span>
-            <span>Scroll: Zoom In/Out</span>
+            <span>Scroll: Zoom</span>
             <span>•</span>
             <span>Right Click: Pan</span>
           </div>
         </div>
 
         {selectedVehicleId && (
-          <div className="bg-[#1E293B]/95 backdrop-blur-md p-3.5 rounded-xl border border-emerald-500/50 text-white shadow-2xl flex items-center gap-4 pointer-events-auto animate-fadeIn">
+          <div className="bg-[#1E293B]/95 backdrop-blur-md p-3.5 rounded-xl border border-emerald-500/50 text-white shadow-2xl flex items-center gap-4 pointer-events-auto animate-fadeIn font-mono">
             <div>
               <span className="text-[10px] text-emerald-400 uppercase font-black tracking-wider block">
                 Active Tracking Unit
@@ -931,7 +1038,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
             <div className="h-7 w-[1px] bg-slate-700" />
 
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 block">Assigned Deliveries</span>
+              <span className="text-[10px] text-slate-400 block">Assigned Stops</span>
               <span className="text-xs font-black text-amber-300">
                 {assignments.find((a) => a.vehicleId === selectedVehicleId)?.stopsCount || 0} stops
               </span>

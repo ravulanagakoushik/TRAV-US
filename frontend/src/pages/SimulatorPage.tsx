@@ -1,32 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api.js';
-import {
-  OptimizationRun,
-  DisruptionScenario,
-  ScenarioType,
-  Vehicle,
-} from '../types/index.js';
+import { localDataService } from '../services/localDataService.js';
+import { OptimizationRun, DisruptionScenario, Vehicle } from '../types/index.js';
 import { Topbar } from '../components/layout/Topbar.js';
 import { StatusBadge } from '../components/common/StatusBadge.js';
-import { Map2D } from '../components/map/Map2D.js';
 import {
   Zap,
-  Play,
-  TrendingUp,
-  AlertTriangle,
-  ArrowRight,
-  Truck,
-  RotateCcw,
-  Bot,
   Activity,
+  ArrowRight,
+  TrendingDown,
+  Clock,
+  Navigation,
+  Building2,
+  CheckCircle2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+type ScenarioType = 'traffic' | 'vehicle_breakdown' | 'road_closure' | 'urgent_delivery';
 
 export const SimulatorPage: React.FC = () => {
   const [baselineRun, setBaselineRun] = useState<OptimizationRun | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  
+  // Scenario Config
   const [scenarioType, setScenarioType] = useState<ScenarioType>('traffic');
-  const [scenarioName, setScenarioName] = useState('Metro Rush Hour Congestion');
+  const [scenarioName, setScenarioName] = useState('Severe Downtown Traffic Surge');
   const [congestionMultiplier, setCongestionMultiplier] = useState(2.2);
   const [breakdownVehicleId, setBreakdownVehicleId] = useState<string>('');
   const [urgentStopLabel, setUrgentStopLabel] = useState('Emergency St. Jude Medical Supply Dispatch');
@@ -40,7 +38,7 @@ export const SimulatorPage: React.FC = () => {
   const loadData = async () => {
     try {
       const runs = await api.getOptimizationRuns();
-      if (runs.length > 0) {
+      if (runs && runs.length > 0) {
         setBaselineRun(runs[0]);
       } else {
         const seeded = await api.seedDemoData();
@@ -50,7 +48,12 @@ export const SimulatorPage: React.FC = () => {
       setVehicles(v);
       if (v.length > 0) setBreakdownVehicleId(v[0].id);
     } catch (err) {
-      console.error('Failed to load simulator data', err);
+      console.warn('Simulator loadData fallback to localDataService:', err);
+      const fallbackRun = localDataService.getLatestRun();
+      setBaselineRun(fallbackRun);
+      const fallbackVehicles = localDataService.getVehicles();
+      setVehicles(fallbackVehicles);
+      if (fallbackVehicles.length > 0) setBreakdownVehicleId(fallbackVehicles[0].id);
     }
   };
 
@@ -59,7 +62,11 @@ export const SimulatorPage: React.FC = () => {
   }, []);
 
   const handleRunSimulation = async () => {
-    if (!baselineRun) return;
+    let runToUse = baselineRun;
+    if (!runToUse) {
+      runToUse = localDataService.getLatestRun();
+      setBaselineRun(runToUse);
+    }
 
     try {
       setSimulating(true);
@@ -71,7 +78,7 @@ export const SimulatorPage: React.FC = () => {
       if (scenarioType === 'traffic') {
         configuration.congestionMultiplier = congestionMultiplier;
       } else if (scenarioType === 'vehicle_breakdown') {
-        configuration.breakdownVehicleId = breakdownVehicleId;
+        configuration.breakdownVehicleId = breakdownVehicleId || (vehicles[0]?.id || 'veh-01');
       } else if (scenarioType === 'urgent_delivery') {
         configuration.urgentStop = {
           label: urgentStopLabel,
@@ -91,15 +98,29 @@ export const SimulatorPage: React.FC = () => {
 
       const res = await api.createScenario({
         name: scenarioName,
-        baselineRunId: baselineRun.id,
+        baselineRunId: runToUse.id,
         scenarioType,
         configuration,
       });
 
       setActiveScenario(res.scenario);
       setChangedAssignments(res.changedAssignments);
+
+      // Save revised run & scenario so 3D City View immediately reflects the disruption!
+      if (res.scenario?.revisedRun) {
+        localStorage.setItem('routerescue_latest_run', JSON.stringify(res.scenario.revisedRun));
+        localStorage.setItem('routerescue_active_scenario', JSON.stringify(res.scenario));
+      }
+
+      // Automatically redirect to the 3D City View with motion graphics!
+      setTimeout(() => {
+        navigate('/city?simulated=true');
+      }, 500);
     } catch (err) {
-      console.error('Simulation execution failed', err);
+      console.warn('Simulation execution fallback to client-side simulator:', err);
+      const fallbackRes = localDataService.simulateDisruption(runToUse, scenarioType, scenarioName, {});
+      setActiveScenario(fallbackRes.scenario);
+      navigate('/city?simulated=true');
     } finally {
       setSimulating(false);
     }
@@ -114,7 +135,7 @@ export const SimulatorPage: React.FC = () => {
 
       <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
         {/* Simulator Header & Scenario Config */}
-        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-6 shadow-warm space-y-5">
+        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-2xl p-6 shadow-warm space-y-5">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold mb-1.5">
@@ -125,14 +146,14 @@ export const SimulatorPage: React.FC = () => {
                 Introduce Disruption & Recalculate Dynamic Plan
               </h2>
               <p className="text-xs text-[#7A624E]">
-                Baseline optimization run remains immutable. Dynamic rerouting calculates consequences in real time.
+                Executes the disruption scenario, calculates detour consequences in real time, and redirects directly to the 3D Digital Twin City!
               </p>
             </div>
 
             <button
               onClick={handleRunSimulation}
-              disabled={simulating || !baselineRun}
-              className="group px-6 py-2.5 bg-[#B71C1C] text-white hover:bg-red-800 rounded-xl font-bold text-sm shadow-warm hover:shadow-xl hover:shadow-red-900/30 hover:scale-105 active:scale-95 flex items-center gap-2 transition-all duration-200 disabled:opacity-50"
+              disabled={simulating}
+              className="group px-6 py-3 bg-[#B71C1C] text-white hover:bg-red-800 rounded-xl font-bold text-sm shadow-warm hover:shadow-xl hover:shadow-red-900/30 hover:scale-105 active:scale-95 flex items-center gap-2 transition-all duration-200 disabled:opacity-50 cursor-pointer"
             >
               <Zap className="w-4 h-4 fill-current transition-transform duration-200 group-hover:scale-115 group-hover:rotate-12" />
               <span>{simulating ? 'Simulating Dynamic Reroute...' : 'Execute Disruption Simulation'}</span>
@@ -200,28 +221,23 @@ export const SimulatorPage: React.FC = () => {
               {scenarioType === 'traffic' && (
                 <div>
                   <label className="text-xs font-semibold text-[#5B3925]">
-                    Traffic Congestion Multiplier: <b className="text-[#382719]">{congestionMultiplier}x</b>
+                    Traffic Congestion Multiplier ({congestionMultiplier}x Delay)
                   </label>
                   <input
                     type="range"
                     min="1.2"
-                    max="3.5"
+                    max="4.0"
                     step="0.1"
                     value={congestionMultiplier}
                     onChange={(e) => setCongestionMultiplier(parseFloat(e.target.value))}
                     className="w-full mt-2 accent-[#B71C1C]"
                   />
-                  <div className="flex justify-between text-[10px] text-[#7A624E]">
-                    <span>1.2x (Minor Delay)</span>
-                    <span>2.2x (Heavy Rush)</span>
-                    <span>3.5x (Gridlock)</span>
-                  </div>
                 </div>
               )}
 
               {scenarioType === 'vehicle_breakdown' && (
                 <div>
-                  <label className="text-xs font-semibold text-[#5B3925]">Select Failing Vehicle</label>
+                  <label className="text-xs font-semibold text-[#5B3925]">Select Disabled Vehicle</label>
                   <select
                     value={breakdownVehicleId}
                     onChange={(e) => setBreakdownVehicleId(e.target.value)}
@@ -229,7 +245,7 @@ export const SimulatorPage: React.FC = () => {
                   >
                     {vehicles.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.name} ({v.vehicleType} - Capacity: {v.capacity})
+                        {v.name} ({v.vehicleType})
                       </option>
                     ))}
                   </select>
@@ -238,7 +254,7 @@ export const SimulatorPage: React.FC = () => {
 
               {scenarioType === 'urgent_delivery' && (
                 <div>
-                  <label className="text-xs font-semibold text-[#5B3925]">Urgent Parcel Destination</label>
+                  <label className="text-xs font-semibold text-[#5B3925]">Urgent Stop Label</label>
                   <input
                     type="text"
                     value={urgentStopLabel}
@@ -251,107 +267,63 @@ export const SimulatorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Delta Metrics Callout (Before vs After) */}
-        {deltas && (
-          <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-6 shadow-warm space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        {/* Real-time Delta Impact Banner if simulated */}
+        {activeScenario && deltas && (
+          <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-2xl p-6 shadow-warm space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base text-[#382719]">
-                  Disruption Impact Assessment Results
+                <span className="text-xs font-bold uppercase tracking-wider text-red-700">
+                  ⚡ Active Disruption Impact Assessment
+                </span>
+                <h3 className="font-extrabold text-lg text-[#382719] mt-0.5">
+                  {activeScenario.name}
                 </h3>
-                <p className="text-xs text-[#7A624E]">
-                  Net variances between baseline schedule and revised plan
-                </p>
               </div>
-
               <button
-                onClick={() => navigate('/advisor')}
-                className="px-4 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                onClick={() => navigate('/city?simulated=true')}
+                className="px-4 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-all"
               >
-                <Bot className="w-4 h-4 text-[#D4A373]" />
-                Ask Gemini to Explain Consequences &rarr;
+                <Building2 className="w-4 h-4" />
+                <span>Inspect in 3D City View</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-[#FFEBEE] border border-[#FFCDD2]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-red-700">Added Travel Time</span>
-                <div className="text-2xl font-black text-red-900 mt-1">
-                  +{deltas.durationDiffMinutes} min
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+                <span className="text-[10px] font-bold uppercase text-red-800">Delay Time Impact</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-red-900">+{deltas.durationDiffMinutes} min</span>
+                  <Clock className="w-4 h-4 text-red-700" />
                 </div>
-                <div className="text-[11px] text-red-700 mt-1">Total route delay impact</div>
               </div>
 
-              <div className="p-4 rounded-xl bg-[#FEF3D6] border border-[#FFE082]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Detour Distance</span>
-                <div className="text-2xl font-black text-amber-900 mt-1">
-                  {deltas.distanceDiffKm > 0 ? `+${deltas.distanceDiffKm}` : deltas.distanceDiffKm} km
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <span className="text-[10px] font-bold uppercase text-amber-800">Detour Extra Distance</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-amber-900">+{deltas.distanceDiffKm} km</span>
+                  <Navigation className="w-4 h-4 text-amber-700" />
                 </div>
-                <div className="text-[11px] text-amber-800 mt-1">Street detour variance</div>
               </div>
 
-              <div className="p-4 rounded-xl bg-[#FEF3D6] border border-[#FFE082]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Newly At-Risk Deliveries</span>
-                <div className="text-2xl font-black text-amber-900 mt-1">
-                  +{deltas.newlyAtRiskCount} stops
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <span className="text-[10px] font-bold uppercase text-amber-800">Additional Carbon</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-amber-900">+{(deltas.distanceDiffKm * 0.24).toFixed(1)} kg</span>
+                  <TrendingDown className="w-4 h-4 text-amber-700 rotate-180" />
                 </div>
-                <div className="text-[11px] text-amber-800 mt-1">SLA deadline sensitivity</div>
               </div>
 
-              <div className="p-4 rounded-xl bg-[#E3F2FD] border border-[#BBDEFB]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800">Reassigned Deliveries</span>
-                <div className="text-2xl font-black text-blue-900 mt-1">
-                  {deltas.reassignedStopsCount} stops
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                <span className="text-[10px] font-bold uppercase text-emerald-800">Dynamic Reassignment</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-emerald-900">
+                    {changedAssignments.length} vans
+                  </span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
                 </div>
-                <div className="text-[11px] text-blue-800 mt-1">Absorbed by spare capacity</div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Changed Assignments Table */}
-        {changedAssignments.length > 0 && (
-          <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm">
-            <h3 className="font-bold text-[#382719] text-base mb-3">Vehicle Reassignment Manifest</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#F3E8D7] text-[#5B3925] uppercase tracking-wider font-semibold">
-                  <tr>
-                    <th className="py-2.5 px-3 rounded-l-lg">Vehicle Unit</th>
-                    <th className="py-2.5 px-3">Original Stops</th>
-                    <th className="py-2.5 px-3">Revised Stops</th>
-                    <th className="py-2.5 px-3 rounded-r-lg">Operational Adaptation</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E2D1BC]/60">
-                  {changedAssignments.map((a) => (
-                    <tr key={a.vehicleId} className="hover:bg-[#F3E8D7]/30">
-                      <td className="py-3 px-3 font-bold text-[#382719]">{a.vehicleName}</td>
-                      <td className="py-3 px-3">{a.originalStopsCount} stops</td>
-                      <td className="py-3 px-3 font-bold text-[#5B3925]">{a.newStopsCount} stops</td>
-                      <td className="py-3 px-3 font-medium text-[#7A624E]">
-                        <span className="px-2.5 py-1 rounded-full bg-[#F3E8D7] text-[#5B3925] text-xs">
-                          {a.statusNote}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Revised Plan Map View */}
-        {revisedRun && (
-          <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm">
-            <h3 className="font-bold text-[#382719] text-base mb-1">Revised Route Topology</h3>
-            <p className="text-xs text-[#7A624E] mb-4">Dynamically adapted route lines following simulated event</p>
-            <Map2D
-              stops={revisedRun.assignments.flatMap((a) => a.stops.map((s) => s.deliveryStop))}
-              assignments={revisedRun.assignments}
-              height="440px"
-            />
           </div>
         )}
       </div>

@@ -1,31 +1,74 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
-import { OptimizationRun, Vehicle, DeliveryStop } from '../types/index.js';
+import { OptimizationRun, Vehicle, DeliveryStop, DisruptionScenario } from '../types/index.js';
 import { Topbar } from '../components/layout/Topbar.js';
 import { CityScene } from '../components/city/CityScene.js';
 import { Map2D } from '../components/map/Map2D.js';
 import { StatusBadge } from '../components/common/StatusBadge.js';
-import { Building2, Map, Truck, Navigation, Eye, Clock, ShieldAlert } from 'lucide-react';
+import {
+  Building2,
+  Map,
+  Truck,
+  Navigation,
+  Eye,
+  Clock,
+  ShieldAlert,
+  Radio,
+  Zap,
+  ArrowRight,
+  RefreshCw,
+} from 'lucide-react';
 
 export const CityPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isSimulatedParam = searchParams.get('simulated') === 'true';
+  const initialMode = searchParams.get('mode') === 'satellite' ? 'satellite' : '3d';
+
   const [run, setRun] = useState<OptimizationRun | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [stops, setStops] = useState<DeliveryStop[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'3d' | '2d' | 'split'>('3d');
+  const [viewMode, setViewMode] = useState<'3d' | 'satellite' | '2d' | 'split'>(initialMode);
   const [loading, setLoading] = useState(true);
+  const [activeScenario, setActiveScenario] = useState<DisruptionScenario | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const runs = await api.getOptimizationRuns();
-      if (runs.length > 0) {
-        setRun(runs[0]);
-      } else {
-        // If no run exists, seed demo and retrieve
-        const seeded = await api.seedDemoData();
-        setRun(seeded.initialRun);
+      let activeRun: OptimizationRun | null = null;
+
+      if (isSimulatedParam) {
+        const savedSimRun = localStorage.getItem('routerescue_latest_run');
+        const savedScenario = localStorage.getItem('routerescue_active_scenario');
+        if (savedSimRun) {
+          try {
+            activeRun = JSON.parse(savedSimRun);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        if (savedScenario) {
+          try {
+            setActiveScenario(JSON.parse(savedScenario));
+          } catch (e) {
+            console.error(e);
+          }
+        }
       }
+
+      if (!activeRun) {
+        const runs = await api.getOptimizationRuns();
+        if (runs.length > 0) {
+          activeRun = runs[0];
+        } else {
+          const seeded = await api.seedDemoData();
+          activeRun = seeded.initialRun;
+        }
+      }
+
+      setRun(activeRun);
       const v = await api.getVehicles();
       const s = await api.getStops();
       setVehicles(v);
@@ -39,15 +82,68 @@ export const CityPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [isSimulatedParam]);
+
+  const resetToBaseline = async () => {
+    localStorage.removeItem('routerescue_latest_run');
+    localStorage.removeItem('routerescue_active_scenario');
+    setActiveScenario(null);
+    navigate('/city');
+  };
 
   const selectedAssignment = run?.assignments.find((a) => a.vehicleId === selectedVehicleId);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F3E8D7]">
-      <Topbar title="Interactive 3D Fleet City" onRefresh={loadData} />
+      <Topbar title="Interactive 3D Fleet City & Satellite Reconnaissance" onRefresh={loadData} />
 
       <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+        {/* Active Disruption Simulation Banner */}
+        {isSimulatedParam && (
+          <div className="relative overflow-hidden bg-gradient-to-r from-red-950 via-slate-900 to-[#382719] text-white p-5 rounded-2xl border border-red-500/60 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeIn">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-xl bg-red-600/30 border border-red-500/60 text-red-400 mt-0.5">
+                <ShieldAlert className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-red-400 bg-red-950/80 px-2 py-0.5 rounded border border-red-800">
+                    Active Disruption Simulation
+                  </span>
+                  {activeScenario && (
+                    <span className="text-xs font-semibold text-slate-300">
+                      Scenario: {activeScenario.name} ({activeScenario.scenarioType.replace('_', ' ')})
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base font-bold text-white mt-1">
+                  Dynamic Route Reconfiguration Deployed in 3D City Twin
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Affected stops re-assigned and route geometry dynamically recomputed. Switch to Satellite View to observe real-time telemetry motion graphics.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
+              <button
+                onClick={() => setViewMode('satellite')}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+              >
+                <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-200" />
+                Satellite Recon View
+              </button>
+              <button
+                onClick={resetToBaseline}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Reset Baseline
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Controls Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#FFF9F0] p-4 rounded-xl border border-[#E2D1BC] shadow-warm">
           <div>
@@ -56,12 +152,12 @@ export const CityPage: React.FC = () => {
               Digital Twin & Route Geometry Visualizer
             </h2>
             <p className="text-xs text-[#7A624E]">
-              Synchronized 3D procedural urban environment animating actual dispatch coordinates
+              Synchronized 3D urban environment animating dispatch coordinates with satellite telemetry & motion graphics
             </p>
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 bg-[#F3E8D7] p-1 rounded-xl border border-[#E2D1BC] shadow-sm">
+          <div className="flex items-center gap-1.5 bg-[#F3E8D7] p-1 rounded-xl border border-[#E2D1BC] shadow-sm flex-wrap">
             <button
               onClick={() => setViewMode('3d')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 ${
@@ -71,7 +167,18 @@ export const CityPage: React.FC = () => {
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
-              3D View
+              3D City
+            </button>
+            <button
+              onClick={() => setViewMode('satellite')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 ${
+                viewMode === 'satellite'
+                  ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                  : 'text-[#7A624E] hover:text-emerald-700 hover:bg-white/60'
+              }`}
+            >
+              <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-500" />
+              Satellite View
             </button>
             <button
               onClick={() => setViewMode('split')}
@@ -100,7 +207,7 @@ export const CityPage: React.FC = () => {
 
         {/* Visualization Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Main Visualizer (3D or 2D or Split) */}
+          {/* Main Visualizer (3D or Satellite or 2D or Split) */}
           <div className={`${viewMode === 'split' ? 'lg:col-span-3' : 'lg:col-span-3'} space-y-4`}>
             {viewMode === '3d' && (
               <CityScene
@@ -108,6 +215,17 @@ export const CityPage: React.FC = () => {
                 assignments={run?.assignments || []}
                 selectedVehicleId={selectedVehicleId}
                 onSelectVehicle={setSelectedVehicleId}
+                viewMode="3d"
+              />
+            )}
+
+            {viewMode === 'satellite' && (
+              <CityScene
+                stops={stops}
+                assignments={run?.assignments || []}
+                selectedVehicleId={selectedVehicleId}
+                onSelectVehicle={setSelectedVehicleId}
+                viewMode="satellite"
               />
             )}
 
@@ -128,6 +246,7 @@ export const CityPage: React.FC = () => {
                   assignments={run?.assignments || []}
                   selectedVehicleId={selectedVehicleId}
                   onSelectVehicle={setSelectedVehicleId}
+                  viewMode="3d"
                 />
                 <Map2D
                   stops={stops}
