@@ -7,6 +7,7 @@ import {
   VehicleRouteAssignment,
   RouteStopAssignment,
   PlanMetrics,
+  OptimizationObjective,
 } from '../types/index.js';
 
 export const DEFAULT_DEPOT: Depot = {
@@ -342,14 +343,35 @@ export function createDefaultStops(): DeliveryStop[] {
 // Generate realistic route assignments and optimization metrics locally
 export function generateLocalOptimizationRun(
   vehicles: Vehicle[],
-  stops: DeliveryStop[]
+  stops: DeliveryStop[],
+  options?: {
+    objective?: OptimizationObjective;
+    balanceWorkload?: boolean;
+    prioritizeUrgent?: boolean;
+  }
 ): OptimizationRun {
   const runId = `run-local-${Date.now()}`;
   const userId = 'demo-fleet-operator-01';
+  const objective = options?.objective || 'balance_time_distance';
+  const balanceWorkload = options?.balanceWorkload !== false;
+  const prioritizeUrgent = options?.prioritizeUrgent !== false;
+
+  // Re-order and partition stops based on chosen objective
+  let organizedStops = [...stops];
+  if (prioritizeUrgent || objective === 'prioritize_urgent') {
+    const priorityWeights: Record<string, number> = { urgent: 4, high: 3, normal: 2, low: 1 };
+    organizedStops.sort((a, b) => (priorityWeights[b.priority] || 2) - (priorityWeights[a.priority] || 2));
+  } else if (objective === 'minimize_distance') {
+    organizedStops.sort((a, b) => {
+      const distA = Math.hypot(a.latitude - DEFAULT_DEPOT.latitude, a.longitude - DEFAULT_DEPOT.longitude);
+      const distB = Math.hypot(b.latitude - DEFAULT_DEPOT.latitude, b.longitude - DEFAULT_DEPOT.longitude);
+      return distA - distB;
+    });
+  }
 
   const assignments: VehicleRouteAssignment[] = vehicles.map((v, vIdx) => {
     // Distribute stops evenly across active fleet
-    const assignedStops = stops.filter((_, idx) => idx % vehicles.length === vIdx);
+    const assignedStops = organizedStops.filter((_, idx) => idx % vehicles.length === vIdx);
 
     const routeGeometry = [
       { latitude: DEFAULT_DEPOT.latitude, longitude: DEFAULT_DEPOT.longitude, isDepot: true },
@@ -357,26 +379,27 @@ export function generateLocalOptimizationRun(
       { latitude: DEFAULT_DEPOT.latitude, longitude: DEFAULT_DEPOT.longitude, isDepot: true },
     ];
 
+    const distMult = objective === 'minimize_distance' ? 0.85 : 1.0;
     const stopsWithTimeline: RouteStopAssignment[] = assignedStops.map((s, seq) => ({
       id: `rsa-${v.id}-${s.id}`,
       assignmentId: `assign-${v.id}`,
       deliveryStopId: s.id,
       deliveryStop: s,
       sequenceNumber: seq + 1,
-      estimatedArrivalAt: new Date(Date.now() + (seq + 1) * 22 * 60000).toISOString(),
-      estimatedDepartureAt: new Date(Date.now() + ((seq + 1) * 22 + s.serviceDurationMinutes) * 60000).toISOString(),
-      distanceFromPreviousKm: Number((1.8 + Math.random() * 2.2).toFixed(1)),
-      travelMinutesFromPrevious: Number((8 + Math.random() * 12).toFixed(1)),
-      riskLevel: 'low',
+      estimatedArrivalAt: new Date(Date.now() + (seq + 1) * 20 * 60000).toISOString(),
+      estimatedDepartureAt: new Date(Date.now() + ((seq + 1) * 20 + s.serviceDurationMinutes) * 60000).toISOString(),
+      distanceFromPreviousKm: Number(((1.6 + Math.random() * 1.8) * distMult).toFixed(1)),
+      travelMinutesFromPrevious: Number(((7 + Math.random() * 10) * distMult).toFixed(1)),
+      riskLevel: s.priority === 'urgent' && !prioritizeUrgent ? 'medium' : 'low',
     }));
 
     const totalDist = Number(
-      stopsWithTimeline.reduce((acc, curr) => acc + curr.distanceFromPreviousKm, 3.5).toFixed(1)
+      stopsWithTimeline.reduce((acc, curr) => acc + curr.distanceFromPreviousKm, 3.2).toFixed(1)
     );
     const totalDuration = Math.round(
       stopsWithTimeline.reduce(
         (acc, curr) => acc + curr.travelMinutesFromPrevious + curr.deliveryStop.serviceDurationMinutes,
-        15
+        14
       )
     );
     const totalDelivered = stopsWithTimeline.reduce((acc, curr) => acc + curr.deliveryStop.demand, 0);
@@ -404,22 +427,22 @@ export function generateLocalOptimizationRun(
   const totalCo2 = Number((totalDistAll * 0.16).toFixed(1));
 
   const baselineMetrics: PlanMetrics = {
-    totalDistanceKm: Number((totalDistAll * 1.25).toFixed(1)),
-    totalDurationMinutes: Math.round(totalDurAll * 1.28),
-    averageUtilizationPercent: 78,
+    totalDistanceKm: Number((totalDistAll * 1.28).toFixed(1)),
+    totalDurationMinutes: Math.round(totalDurAll * 1.32),
+    averageUtilizationPercent: 74,
     activeVehiclesCount: vehicles.length,
     assignedStopsCount: stops.length,
     unassignedStopsCount: 0,
-    atRiskDeliveriesCount: 3,
-    estimatedFuelLiters: Number(((totalDistAll * 1.25) * 0.12).toFixed(1)),
-    estimatedCo2Kg: Number((totalCo2 * 1.22).toFixed(1)),
-    estimatedCostUsd: Number(((totalDistAll * 1.25) * 1.35).toFixed(2)),
+    atRiskDeliveriesCount: objective === 'prioritize_urgent' ? 0 : 3,
+    estimatedFuelLiters: Number(((totalDistAll * 1.28) * 0.12).toFixed(1)),
+    estimatedCo2Kg: Number((totalCo2 * 1.28).toFixed(1)),
+    estimatedCostUsd: Number(((totalDistAll * 1.28) * 1.35).toFixed(2)),
   };
 
   const optimizedMetrics: PlanMetrics = {
     totalDistanceKm: Number(totalDistAll.toFixed(1)),
     totalDurationMinutes: Math.round(totalDurAll),
-    averageUtilizationPercent: 88,
+    averageUtilizationPercent: balanceWorkload ? 89 : 82,
     activeVehiclesCount: vehicles.length,
     assignedStopsCount: stops.length,
     unassignedStopsCount: 0,
@@ -432,14 +455,14 @@ export function generateLocalOptimizationRun(
   return {
     id: runId,
     userId,
-    objective: 'balance_time_distance',
+    objective,
     calculationMode: 'simulated',
     inputSnapshot: {
       depot: DEFAULT_DEPOT,
       vehicleCount: vehicles.length,
       deliveryCount: stops.length,
-      balanceWorkload: true,
-      prioritizeUrgent: true,
+      balanceWorkload,
+      prioritizeUrgent,
     },
     baselineMetrics,
     optimizedMetrics,
@@ -498,6 +521,33 @@ export const localDataService = {
     const vehicles = localDataService.getVehicles();
     const stops = localDataService.getStops();
     const run = generateLocalOptimizationRun(vehicles, stops);
+    localStorage.setItem('routerescue_latest_run', JSON.stringify(run));
+    return run;
+  },
+
+  runOptimization: (options?: {
+    objective?: OptimizationObjective;
+    balanceWorkload?: boolean;
+    prioritizeUrgent?: boolean;
+    vehicleIds?: string[];
+    stopIds?: string[];
+  }): OptimizationRun => {
+    let vehicles = localDataService.getVehicles();
+    let stops = localDataService.getStops();
+
+    if (options?.vehicleIds && options.vehicleIds.length > 0) {
+      vehicles = vehicles.filter((v) => options.vehicleIds!.includes(v.id));
+    }
+    if (options?.stopIds && options.stopIds.length > 0) {
+      stops = stops.filter((s) => options.stopIds!.includes(s.id));
+    }
+
+    const run = generateLocalOptimizationRun(vehicles, stops, {
+      objective: options?.objective || 'balance_time_distance',
+      balanceWorkload: options?.balanceWorkload !== false,
+      prioritizeUrgent: options?.prioritizeUrgent !== false,
+    });
+
     localStorage.setItem('routerescue_latest_run', JSON.stringify(run));
     return run;
   },

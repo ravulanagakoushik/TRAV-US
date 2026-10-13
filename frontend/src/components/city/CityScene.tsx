@@ -144,8 +144,11 @@ const DisruptionHazardZone: React.FC<{ position: [number, number, number] }> = (
   );
 };
 
-// Procedural City Buildings
-const CityBuildings: React.FC<{ isNight: boolean; isSatellite: boolean }> = ({ isNight, isSatellite }) => {
+const CityBuildings: React.FC<{ isNight: boolean; isSunset: boolean; isSatellite: boolean }> = ({
+  isNight,
+  isSunset,
+  isSatellite,
+}) => {
   const textures = useMemo(() => {
     return [
       createFacadeTexture(0, isNight),
@@ -249,10 +252,20 @@ const CityBuildings: React.FC<{ isNight: boolean; isSatellite: boolean }> = ({ i
             <mesh position={[0, (b.height || 10) / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[b.width, b.height, b.depth]} />
               <meshStandardMaterial
-                map={isSatellite ? undefined : tex}
-                color={isSatellite ? '#0F172A' : isNight ? '#FFFFFF' : '#CBD5E1'}
-                roughness={isSatellite ? 0.2 : 0.4}
-                metalness={isSatellite ? 0.8 : 0.6}
+                map={isSatellite ? (isNight ? undefined : tex) : tex}
+                color={
+                  isSatellite
+                    ? isNight
+                      ? '#0F172A'
+                      : isSunset
+                      ? '#3D2E2B'
+                      : '#64748B'
+                    : isNight
+                    ? '#FFFFFF'
+                    : '#CBD5E1'
+                }
+                roughness={isSatellite ? (isNight ? 0.2 : 0.4) : 0.4}
+                metalness={isSatellite ? (isNight ? 0.85 : 0.6) : 0.6}
                 wireframe={false}
               />
             </mesh>
@@ -261,13 +274,18 @@ const CityBuildings: React.FC<{ isNight: boolean; isSatellite: boolean }> = ({ i
             {isSatellite && (
               <mesh position={[0, (b.height || 10) + 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                 <planeGeometry args={[(b.width || 8) * 0.9, (b.depth || 8) * 0.9]} />
-                <meshBasicMaterial color="#10B981" wireframe transparent opacity={0.4} />
+                <meshBasicMaterial
+                  color={isNight ? '#10B981' : isSunset ? '#F59E0B' : '#06B6D4'}
+                  wireframe
+                  transparent
+                  opacity={0.4}
+                />
               </mesh>
             )}
 
             <mesh position={[0, (b.height || 10) + 0.6, 0]}>
               <boxGeometry args={[(b.width || 8) * 0.8, 1.2, (b.depth || 8) * 0.8]} />
-              <meshStandardMaterial color="#0F172A" roughness={0.7} />
+              <meshStandardMaterial color={isNight ? '#0F172A' : '#1E293B'} roughness={0.7} />
             </mesh>
 
             {b.hasBeacon && (
@@ -693,31 +711,97 @@ export const CityScene: React.FC<CitySceneProps> = ({
       >
         <color
           attach="background"
-          args={[isSatellite ? '#020617' : isNight ? '#0B0F19' : isSunset ? '#2C1B18' : '#60A5FA']}
+          args={[
+            isSatellite
+              ? isNight
+                ? '#020617'
+                : isSunset
+                ? '#241411'
+                : '#0F1A2C'
+              : isNight
+              ? '#0B0F19'
+              : isSunset
+              ? '#2C1B18'
+              : '#60A5FA',
+          ]}
         />
         <fog
           attach="fog"
           args={[
-            isSatellite ? '#020617' : isNight ? '#0B0F19' : isSunset ? '#2C1B18' : '#93C5FD',
+            isSatellite
+              ? isNight
+                ? '#020617'
+                : isSunset
+                ? '#241411'
+                : '#1E293B'
+              : isNight
+              ? '#0B0F19'
+              : isSunset
+              ? '#2C1B18'
+              : '#93C5FD',
             60,
             260,
           ]}
         />
 
         {/* Dynamic Sun & Skylight */}
-        <ambientLight intensity={isSatellite ? 0.45 : isNight ? 0.35 : isSunset ? 0.7 : 0.9} />
+        <ambientLight
+          intensity={
+            isSatellite
+              ? isNight
+                ? 0.4
+                : isSunset
+                ? 0.7
+                : 1.05
+              : isNight
+              ? 0.35
+              : isSunset
+              ? 0.7
+              : 0.9
+          }
+        />
         <hemisphereLight
           args={[
-            isSatellite ? '#064E3B' : isNight ? '#1E293B' : isSunset ? '#F97316' : '#BAE6FD',
-            isSatellite ? '#020617' : isNight ? '#0F172A' : '#78350F',
-            isSatellite ? 0.6 : isNight ? 0.4 : 0.8,
+            isSatellite
+              ? isNight
+                ? '#064E3B'
+                : isSunset
+                ? '#F97316'
+                : '#38BDF8'
+              : isNight
+              ? '#1E293B'
+              : isSunset
+              ? '#F97316'
+              : '#BAE6FD',
+            isSatellite
+              ? isNight
+                ? '#020617'
+                : isSunset
+                ? '#1C1917'
+                : '#0F172A'
+              : isNight
+              ? '#0F172A'
+              : '#78350F',
+            isSatellite ? (isNight ? 0.6 : isSunset ? 0.8 : 0.95) : (isNight ? 0.4 : 0.8),
           ]}
         />
 
         <directionalLight
           position={isSunset ? [120, 45, 60] : [90, 130, 80]}
-          intensity={isSatellite ? 1.2 : isNight ? 0.9 : isSunset ? 1.8 : 1.4}
-          color={isSunset ? '#FDBA74' : isSatellite ? '#E2E8F0' : '#FFFFFF'}
+          intensity={
+            isSatellite
+              ? isNight
+                ? 1.1
+                : isSunset
+                ? 2.1
+                : 2.3
+              : isNight
+              ? 0.9
+              : isSunset
+              ? 1.8
+              : 1.4
+          }
+          color={isSunset ? '#FDBA74' : isSatellite ? (isNight ? '#34D399' : '#FFFFFF') : '#FFFFFF'}
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
@@ -728,17 +812,37 @@ export const CityScene: React.FC<CitySceneProps> = ({
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <planeGeometry args={[500, 500]} />
           <meshStandardMaterial
-            color={isSatellite ? '#020617' : isNight ? '#0F172A' : isSunset ? '#1E293B' : '#334155'}
+            color={
+              isSatellite
+                ? isNight
+                  ? '#020617'
+                  : isSunset
+                  ? '#1E1614'
+                  : '#1E293B'
+                : isNight
+                ? '#0F172A'
+                : isSunset
+                ? '#1E293B'
+                : '#334155'
+            }
             roughness={0.85}
           />
         </mesh>
 
         {/* Satellite Mode: High-Tech Coordinate Grid Terrain */}
         {isSatellite && (
-          <gridHelper args={[320, 32, '#059669', '#064E3B']} position={[0, 0.1, 0]} />
+          <gridHelper
+            args={[
+              320,
+              32,
+              isNight ? '#059669' : isSunset ? '#F59E0B' : '#06B6D4',
+              isNight ? '#064E3B' : isSunset ? '#78350F' : '#0E7490',
+            ]}
+            position={[0, 0.1, 0]}
+          />
         )}
 
-        {/* Satellite Mode: Sweeping Green Laser Scanner Beam */}
+        {/* Satellite Mode: Sweeping Laser Scanner Beam */}
         {isSatellite && <SatelliteScannerBeam />}
 
         {/* Disruption Hazard Zones if scenario active */}
@@ -750,7 +854,7 @@ export const CityScene: React.FC<CitySceneProps> = ({
         <CentralDepotModel isNight={isNight} isSatellite={isSatellite} />
 
         {/* Procedural City Skyline */}
-        <CityBuildings isNight={isNight} isSatellite={isSatellite} />
+        <CityBuildings isNight={isNight} isSunset={isSunset} isSatellite={isSatellite} />
 
         {/* Delivery Waypoint Markers */}
         {allStops.map((stop) => {
@@ -825,41 +929,81 @@ export const CityScene: React.FC<CitySceneProps> = ({
       {isSatellite && (
         <div className="absolute inset-0 pointer-events-none">
           {/* Top Orbital Telemetry HUD */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-950/85 backdrop-blur-md px-5 py-2 rounded-2xl border border-emerald-500/50 shadow-2xl flex items-center gap-4 text-emerald-400 font-mono text-xs">
+          <div className={`absolute top-4 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-md px-5 py-2 rounded-2xl border ${
+            isNight
+              ? 'border-emerald-500/60 text-emerald-400'
+              : isSunset
+              ? 'border-amber-500/60 text-amber-400'
+              : 'border-cyan-400/70 text-cyan-300'
+          } shadow-2xl flex items-center gap-4 font-mono text-xs`}>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className={`w-2.5 h-2.5 rounded-full ${
+                isNight ? 'bg-emerald-400' : isSunset ? 'bg-amber-400' : 'bg-cyan-400'
+              } animate-ping`} />
               <span className="font-black text-white tracking-widest uppercase">
-                🛰️ ORBITAL SATELLITE RECONNAISSANCE FEED // SAT-GEO-09
+                {isNight
+                  ? '🛰️ THERMAL INFRARED ORBITAL RECON // SAT-GEO-09 (IR-FLIR)'
+                  : isSunset
+                  ? '🌅 DUSK MULTI-SPECTRAL SATELLITE RECON // LOW SOLAR ANGLE'
+                  : '☀️ OPTICAL DAYLIGHT SATELLITE RECON // SAT-GEO-09 (HIGH-RES VISIBLE)'}
               </span>
             </div>
-            <div className="h-4 w-[1px] bg-emerald-800" />
+            <div className="h-4 w-[1px] bg-slate-700" />
             <div className="text-[11px] text-slate-300">
               LAT: 37.7780° N | LON: 122.4075° W | ALT: 412.5 KM
             </div>
-            <div className="h-4 w-[1px] bg-emerald-800" />
-            <span className="text-emerald-300 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/60">
-              SUB-METER RESOLUTION LOCKED
+            <div className="h-4 w-[1px] bg-slate-700" />
+            <span className={`font-bold px-2 py-0.5 rounded border text-[11px] ${
+              isNight
+                ? 'text-emerald-300 bg-emerald-950/80 border-emerald-700/60'
+                : isSunset
+                ? 'text-amber-300 bg-amber-950/80 border-amber-700/60'
+                : 'text-cyan-200 bg-cyan-950/80 border-cyan-700/60'
+            }`}>
+              {isNight ? 'SUB-METER THERMAL LOCKED' : isSunset ? 'SOLAR TERMINATOR MAPPED' : '100% OPTICAL CLARITY'}
             </span>
           </div>
 
           {/* Animated Tactical Corner Radar Display */}
-          <div className="absolute top-4 right-4 bg-slate-950/90 backdrop-blur-md p-3 rounded-2xl border border-emerald-500/50 shadow-2xl flex flex-col items-center gap-1 font-mono text-[10px] text-emerald-400">
-            <div className="relative w-16 h-16 rounded-full border border-emerald-500/60 flex items-center justify-center overflow-hidden">
-              <div className="absolute inset-1 rounded-full border border-emerald-500/30" />
-              <div className="absolute inset-x-0 h-[1px] bg-emerald-500/40" />
-              <div className="absolute inset-y-0 w-[1px] bg-emerald-500/40" />
+          <div className={`absolute top-4 right-4 bg-slate-950/90 backdrop-blur-md p-3 rounded-2xl border ${
+            isNight
+              ? 'border-emerald-500/60 text-emerald-400'
+              : isSunset
+              ? 'border-amber-500/60 text-amber-400'
+              : 'border-cyan-400/70 text-cyan-300'
+          } shadow-2xl flex flex-col items-center gap-1 font-mono text-[10px]`}>
+            <div className={`relative w-16 h-16 rounded-full border ${
+              isNight ? 'border-emerald-500/60' : isSunset ? 'border-amber-500/60' : 'border-cyan-400/60'
+            } flex items-center justify-center overflow-hidden`}>
+              <div className={`absolute inset-1 rounded-full border ${
+                isNight ? 'border-emerald-500/30' : isSunset ? 'border-amber-500/30' : 'border-cyan-400/30'
+              }`} />
+              <div className="absolute inset-x-0 h-[1px] bg-white/20" />
+              <div className="absolute inset-y-0 w-[1px] bg-white/20" />
               {/* Rotating radar sweep arm */}
-              <div className="absolute w-8 h-8 top-0 right-0 origin-bottom-left bg-gradient-to-tr from-transparent to-emerald-400/40 animate-spin" />
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <div className={`absolute w-8 h-8 top-0 right-0 origin-bottom-left bg-gradient-to-tr from-transparent ${
+                isNight ? 'to-emerald-400/50' : isSunset ? 'to-amber-400/50' : 'to-cyan-400/50'
+              } animate-spin`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                isNight ? 'bg-emerald-400' : isSunset ? 'bg-amber-400' : 'bg-cyan-400'
+              }`} />
             </div>
             <span className="font-bold text-slate-200 mt-1">RADAR AZ: 214°</span>
-            <span className="text-[9px] text-emerald-300">ELEV: 52° • 6 TARGETS</span>
+            <span className="text-[9px]">
+              {isNight ? 'THERMAL • 6 TARGETS' : isSunset ? 'INFRARED • 6 TARGETS' : 'OPTICAL • 6 TARGETS'}
+            </span>
           </div>
 
           {/* Corner Tactical Brackets */}
-          <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-emerald-400 opacity-60" />
-          <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-emerald-400 opacity-60" />
-          <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-emerald-400 opacity-60" />
+          <div className={`absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 ${
+            isNight ? 'border-emerald-400' : isSunset ? 'border-amber-400' : 'border-cyan-400'
+          } opacity-70`} />
+          <div className={`absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 ${
+            isNight ? 'border-emerald-400' : isSunset ? 'border-amber-400' : 'border-cyan-400'
+          } opacity-70`} />
+          <div className={`absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 ${
+            isNight ? 'border-emerald-400' : isSunset ? 'border-amber-400' : 'border-cyan-400'
+          } opacity-70`} />
         </div>
       )}
 

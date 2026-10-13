@@ -254,12 +254,15 @@ export const api = {
   }): Promise<OptimizationRun> => {
     try {
       const res = await apiClient.post('/optimization/runs', options);
-      return res.data.run;
+      if (res.data?.run) {
+        localStorage.setItem('routerescue_latest_run', JSON.stringify(res.data.run));
+        return res.data.run;
+      }
     } catch {
-      const run = localDataService.getLatestRun();
-      localStorage.setItem('routerescue_latest_run', JSON.stringify(run));
-      return run;
+      console.warn('API runOptimization fallback to local calculation heuristic');
     }
+    const run = localDataService.runOptimization(options);
+    return run;
   },
   getOptimizationRuns: async (): Promise<OptimizationRun[]> => {
     try {

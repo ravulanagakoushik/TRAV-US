@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { OptimizationRun, OptimizationObjective } from '../types/index.js';
 import { Topbar } from '../components/layout/Topbar.js';
@@ -14,6 +15,9 @@ import {
   Zap,
   TrendingDown,
   AlertOctagon,
+  Radio,
+  Building2,
+  Sparkles,
 } from 'lucide-react';
 
 const OBJECTIVES: { id: OptimizationObjective; title: string; desc: string }[] = [
@@ -40,12 +44,14 @@ const OBJECTIVES: { id: OptimizationObjective; title: string; desc: string }[] =
 ];
 
 export const OptimizationPage: React.FC = () => {
+  const navigate = useNavigate();
   const [objective, setObjective] = useState<OptimizationObjective>('balance_time_distance');
   const [balanceWorkload, setBalanceWorkload] = useState(true);
   const [prioritizeUrgent, setPrioritizeUrgent] = useState(true);
   const [run, setRun] = useState<OptimizationRun | null>(null);
   const [running, setRunning] = useState(false);
   const [expandedVehicleId, setExpandedVehicleId] = useState<string | null>(null);
+  const [lastOptimizedTimestamp, setLastOptimizedTimestamp] = useState<number | null>(null);
 
   const loadLatest = async () => {
     try {
@@ -74,6 +80,7 @@ export const OptimizationPage: React.FC = () => {
         prioritizeUrgent,
       });
       setRun(newRun);
+      setLastOptimizedTimestamp(Date.now());
     } catch (err) {
       console.error('Optimization run failed', err);
     } finally {
@@ -160,6 +167,50 @@ export const OptimizationPage: React.FC = () => {
             </label>
           </div>
         </div>
+
+        {/* Live Optimization Confirmation Banner */}
+        {lastOptimizedTimestamp && (
+          <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-[#382719] text-white p-5 rounded-2xl border border-emerald-500/60 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeIn">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 mt-0.5">
+                <CheckCircle2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700">
+                    Engine Optimized
+                  </span>
+                  <span className="text-xs text-slate-300 font-semibold">
+                    Objective: {OBJECTIVES.find((o) => o.id === objective)?.title}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-white mt-1">
+                  Fleet Routes Successfully Re-Calculated & Optimized
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Saved <span className="text-emerald-400 font-bold">-{distanceSaved} km</span> and <span className="text-emerald-400 font-bold">-{timeSaved} min</span> with {opt?.atRiskDeliveriesCount || 0} SLA violations. Synchronized to 3D Digital Twin and Satellite feed.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
+              <button
+                onClick={() => navigate('/city?mode=satellite')}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+              >
+                <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-200" />
+                View in Satellite Recon
+              </button>
+              <button
+                onClick={() => navigate('/city')}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                View in 3D City
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Baseline vs Optimized Comparison Metrics */}
         {opt && base && (
