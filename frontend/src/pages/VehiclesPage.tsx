@@ -18,13 +18,46 @@ export const VehiclesPage: React.FC = () => {
   const [status, setStatus] = useState<Vehicle['status']>('available');
   const [cost, setCost] = useState(1.2);
 
+  const [saving, setSaving] = useState(false);
+
+  const getSavedCustomVehicles = (): Vehicle[] => {
+    try {
+      const stored = localStorage.getItem('routerescue_custom_vehicles');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveCustomVehicles = (list: Vehicle[]) => {
+    try {
+      localStorage.setItem('routerescue_custom_vehicles', JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to save vehicles to localStorage', e);
+    }
+  };
+
   const loadVehicles = async () => {
     try {
       setLoading(true);
       const list = await api.getVehicles();
-      setVehicles(list);
+      const localVehicles = getSavedCustomVehicles();
+
+      const existingIds = new Set((list || []).map((v) => v.id));
+      const combined = [
+        ...(list || []),
+        ...localVehicles.filter((v) => !existingIds.has(v.id)),
+      ];
+
+      if (combined.length > 0) {
+        setVehicles(combined);
+      }
     } catch (err) {
       console.error('Failed to load vehicles', err);
+      const localVehicles = getSavedCustomVehicles();
+      if (localVehicles.length > 0) {
+        setVehicles(localVehicles);
+      }
     } finally {
       setLoading(false);
     }
@@ -56,40 +89,79 @@ export const VehiclesPage: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) return;
+
+    const targetId = editingVehicle ? editingVehicle.id : `veh-${Date.now()}`;
+    const vehicleItem: Vehicle = {
+      id: targetId,
+      userId: editingVehicle?.userId || 'demo-fleet-operator-01',
+      name: name.trim(),
+      vehicleType,
+      capacity: Number(capacity) || 30,
+      latitude: editingVehicle?.latitude ?? 37.778,
+      longitude: editingVehicle?.longitude ?? -122.4075,
+      status,
+      operatingCostPerKm: Number(cost) || 1.0,
+      createdAt: editingVehicle?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 1. Immediately close modal and update state for instant user feedback!
+    setModalOpen(false);
+    setSaving(false);
+
+    setVehicles((prev) => {
+      const nextList = editingVehicle
+        ? prev.map((v) => (v.id === targetId ? vehicleItem : v))
+        : [vehicleItem, ...prev];
+      saveCustomVehicles(nextList);
+      return nextList;
+    });
+
+    // 2. Perform backend API sync in background
     try {
       if (editingVehicle) {
         await api.updateVehicle(editingVehicle.id, {
-          name,
+          name: name.trim(),
           vehicleType,
-          capacity: Number(capacity),
+          capacity: Number(capacity) || 30,
           status,
-          operatingCostPerKm: Number(cost),
+          operatingCostPerKm: Number(cost) || 1.0,
         });
       } else {
-        await api.createVehicle({
-          name,
+        const created = await api.createVehicle({
+          name: name.trim(),
           vehicleType,
-          capacity: Number(capacity),
+          capacity: Number(capacity) || 30,
           latitude: 37.778,
           longitude: -122.4075,
           status,
-          operatingCostPerKm: Number(cost),
+          operatingCostPerKm: Number(cost) || 1.0,
         });
+        if (created?.id) {
+          setVehicles((prev) => {
+            const synced = prev.map((v) => (v.id === targetId ? created : v));
+            saveCustomVehicles(synced);
+            return synced;
+          });
+        }
       }
-      setModalOpen(false);
-      loadVehicles();
-    } catch (err) {
-      console.error('Failed to save vehicle', err);
+    } catch (err: any) {
+      console.warn('API save background sync caught:', err);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this vehicle from fleet?')) return;
+    setVehicles((prev) => {
+      const remaining = prev.filter((v) => v.id !== id);
+      saveCustomVehicles(remaining);
+      return remaining;
+    });
     try {
       await api.deleteVehicle(id);
-      loadVehicles();
     } catch (err) {
-      console.error('Failed to delete vehicle', err);
+      console.warn('Backend delete deferred:', err);
     }
   };
 
@@ -256,9 +328,10 @@ export const VehiclesPage: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl font-bold"
+                    disabled={saving}
+                    className="px-5 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl font-bold transition-all disabled:opacity-50"
                   >
-                    Save Vehicle
+                    {saving ? 'Saving Vehicle...' : 'Save Vehicle'}
                   </button>
                 </div>
               </form>

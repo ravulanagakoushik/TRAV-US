@@ -399,6 +399,21 @@ export function createSeedData(userId: string): {
   return { vehicles, stops };
 }
 
+async function withTimeout<T>(promise: PromiseLike<T>, ms = 2500): Promise<T | null> {
+  let timeoutHandle: any;
+  const timeoutPromise = new Promise<null>((resolve) => {
+    timeoutHandle = setTimeout(() => resolve(null), ms);
+  });
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutHandle);
+    return result as T;
+  } catch {
+    clearTimeout(timeoutHandle);
+    return null;
+  }
+}
+
 /**
  * Universal Fleet Repository with Supabase PostgreSQL and In-Memory Standalone Fallback.
  */
@@ -413,7 +428,7 @@ export class FleetRepository {
   private inMemoryProfiles: Map<string, UserProfile> = new Map();
 
   constructor() {
-    if (config.supabaseUrl && config.supabaseAnonKey) {
+    if (config.supabaseUrl && config.supabaseAnonKey && !config.supabaseUrl.includes('your-project')) {
       this.supabase = createClient(
         config.supabaseUrl,
         config.supabaseServiceRoleKey || config.supabaseAnonKey
@@ -428,12 +443,16 @@ export class FleetRepository {
   // Vehicles
   async getVehicles(userId: string): Promise<Vehicle[]> {
     if (this.supabase) {
-      const { data, error } = await this.supabase
-        .from('vehicles')
-        .select('*')
-        .eq('user_id', userId);
-      if (!error && data) {
-        return data.map(this.mapDbVehicle);
+      try {
+        const res: any = await withTimeout(
+          this.supabase.from('vehicles').select('*').eq('user_id', userId),
+          2500
+        );
+        if (res && !res.error && res.data && res.data.length > 0) {
+          return res.data.map(this.mapDbVehicle);
+        }
+      } catch {
+        // Fall back to in-memory store
       }
     }
     this.ensureUserSeeded(userId);
@@ -455,17 +474,24 @@ export class FleetRepository {
     };
 
     if (this.supabase) {
-      await this.supabase.from('vehicles').insert({
-        id: newVehicle.id,
-        user_id: userId,
-        name: newVehicle.name,
-        vehicle_type: newVehicle.vehicleType,
-        capacity: newVehicle.capacity,
-        latitude: newVehicle.latitude,
-        longitude: newVehicle.longitude,
-        status: newVehicle.status,
-        operating_cost_per_km: newVehicle.operatingCostPerKm,
-      });
+      try {
+        await withTimeout(
+          this.supabase.from('vehicles').insert({
+            id: newVehicle.id,
+            user_id: userId,
+            name: newVehicle.name,
+            vehicle_type: newVehicle.vehicleType,
+            capacity: newVehicle.capacity,
+            latitude: newVehicle.latitude,
+            longitude: newVehicle.longitude,
+            status: newVehicle.status,
+            operating_cost_per_km: newVehicle.operatingCostPerKm,
+          }),
+          2500
+        );
+      } catch {
+        // Continue with memory store
+      }
     }
 
     const current = await this.getVehicles(userId);
@@ -487,15 +513,22 @@ export class FleetRepository {
     this.inMemoryVehicles.set(userId, [...current]);
 
     if (this.supabase) {
-      await this.supabase.from('vehicles').update({
-        name: updated.name,
-        vehicle_type: updated.vehicleType,
-        capacity: updated.capacity,
-        latitude: updated.latitude,
-        longitude: updated.longitude,
-        status: updated.status,
-        operating_cost_per_km: updated.operatingCostPerKm,
-      }).eq('id', id).eq('user_id', userId);
+      try {
+        await withTimeout(
+          this.supabase.from('vehicles').update({
+            name: updated.name,
+            vehicle_type: updated.vehicleType,
+            capacity: updated.capacity,
+            latitude: updated.latitude,
+            longitude: updated.longitude,
+            status: updated.status,
+            operating_cost_per_km: updated.operatingCostPerKm,
+          }).eq('id', id).eq('user_id', userId),
+          2500
+        );
+      } catch {
+        // Fall back to memory store
+      }
     }
 
     return updated;
@@ -509,7 +542,14 @@ export class FleetRepository {
     this.inMemoryVehicles.set(userId, filtered);
 
     if (this.supabase) {
-      await this.supabase.from('vehicles').delete().eq('id', id).eq('user_id', userId);
+      try {
+        await withTimeout(
+          this.supabase.from('vehicles').delete().eq('id', id).eq('user_id', userId),
+          2500
+        );
+      } catch {
+        // Fall back to memory store
+      }
     }
     return true;
   }
@@ -517,12 +557,16 @@ export class FleetRepository {
   // Delivery Stops
   async getStops(userId: string): Promise<DeliveryStop[]> {
     if (this.supabase) {
-      const { data, error } = await this.supabase
-        .from('delivery_stops')
-        .select('*')
-        .eq('user_id', userId);
-      if (!error && data) {
-        return data.map(this.mapDbStop);
+      try {
+        const res: any = await withTimeout(
+          this.supabase.from('delivery_stops').select('*').eq('user_id', userId),
+          2500
+        );
+        if (res && !res.error && res.data && res.data.length > 0) {
+          return res.data.map(this.mapDbStop);
+        }
+      } catch {
+        // Fall back to memory store
       }
     }
     this.ensureUserSeeded(userId);
@@ -541,12 +585,15 @@ export class FleetRepository {
     }
 
     if (this.supabase) {
-      const { data } = await this.supabase
-        .from('delivery_stops')
-        .select('*')
-        .eq('tracking_token', token)
-        .single();
-      if (data) return this.mapDbStop(data);
+      try {
+        const res: any = await withTimeout(
+          this.supabase.from('delivery_stops').select('*').eq('tracking_token', token).single(),
+          2500
+        );
+        if (res && res.data) return this.mapDbStop(res.data);
+      } catch {
+        // Fall back
+      }
     }
 
     return null;
@@ -564,20 +611,27 @@ export class FleetRepository {
     };
 
     if (this.supabase) {
-      await this.supabase.from('delivery_stops').insert({
-        id: newStop.id,
-        user_id: userId,
-        label: newStop.label,
-        latitude: newStop.latitude,
-        longitude: newStop.longitude,
-        demand: newStop.demand,
-        priority: newStop.priority,
-        earliest_service_at: newStop.earliestServiceAt,
-        deadline_at: newStop.deadlineAt,
-        service_duration_minutes: newStop.serviceDurationMinutes,
-        status: newStop.status,
-        tracking_token: newStop.trackingToken,
-      });
+      try {
+        await withTimeout(
+          this.supabase.from('delivery_stops').insert({
+            id: newStop.id,
+            user_id: userId,
+            label: newStop.label,
+            latitude: newStop.latitude,
+            longitude: newStop.longitude,
+            demand: newStop.demand,
+            priority: newStop.priority,
+            earliest_service_at: newStop.earliestServiceAt,
+            deadline_at: newStop.deadlineAt,
+            service_duration_minutes: newStop.serviceDurationMinutes,
+            status: newStop.status,
+            tracking_token: newStop.trackingToken,
+          }),
+          2500
+        );
+      } catch {
+        // Fall back to memory store
+      }
     }
 
     const current = await this.getStops(userId);
@@ -599,17 +653,24 @@ export class FleetRepository {
     this.inMemoryStops.set(userId, [...current]);
 
     if (this.supabase) {
-      await this.supabase.from('delivery_stops').update({
-        label: updated.label,
-        latitude: updated.latitude,
-        longitude: updated.longitude,
-        demand: updated.demand,
-        priority: updated.priority,
-        earliest_service_at: updated.earliestServiceAt,
-        deadline_at: updated.deadlineAt,
-        service_duration_minutes: updated.serviceDurationMinutes,
-        status: updated.status,
-      }).eq('id', id).eq('user_id', userId);
+      try {
+        await withTimeout(
+          this.supabase.from('delivery_stops').update({
+            label: updated.label,
+            latitude: updated.latitude,
+            longitude: updated.longitude,
+            demand: updated.demand,
+            priority: updated.priority,
+            earliest_service_at: updated.earliestServiceAt,
+            deadline_at: updated.deadlineAt,
+            service_duration_minutes: updated.serviceDurationMinutes,
+            status: updated.status,
+          }).eq('id', id).eq('user_id', userId),
+          2500
+        );
+      } catch {
+        // Fall back
+      }
     }
 
     return updated;
@@ -623,7 +684,14 @@ export class FleetRepository {
     this.inMemoryStops.set(userId, filtered);
 
     if (this.supabase) {
-      await this.supabase.from('delivery_stops').delete().eq('id', id).eq('user_id', userId);
+      try {
+        await withTimeout(
+          this.supabase.from('delivery_stops').delete().eq('id', id).eq('user_id', userId),
+          2500
+        );
+      } catch {
+        // Fall back
+      }
     }
     return true;
   }

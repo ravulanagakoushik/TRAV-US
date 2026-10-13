@@ -19,16 +19,50 @@ export const DeliveriesPage: React.FC = () => {
   const [priority, setPriority] = useState<PriorityLevel>('normal');
   const [serviceDuration, setServiceDuration] = useState(8);
   const [deadlineMins, setDeadlineMins] = useState(120);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const navigate = useNavigate();
+
+  const getSavedCustomStops = (): DeliveryStop[] => {
+    try {
+      const stored = localStorage.getItem('routerescue_custom_stops');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveCustomStops = (list: DeliveryStop[]) => {
+    try {
+      localStorage.setItem('routerescue_custom_stops', JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to save stops to localStorage', e);
+    }
+  };
 
   const loadStops = async () => {
     try {
       setLoading(true);
       const list = await api.getStops();
-      setStops(list);
+      const localStops = getSavedCustomStops();
+
+      // Merge: backend list + any custom locally saved stops not yet in backend
+      const existingIds = new Set((list || []).map((s) => s.id));
+      const combined = [
+        ...(list || []),
+        ...localStops.filter((s) => !existingIds.has(s.id)),
+      ];
+
+      if (combined.length > 0) {
+        setStops(combined);
+      }
     } catch (err) {
       console.error('Failed to load stops', err);
+      const localStops = getSavedCustomStops();
+      if (localStops.length > 0) {
+        setStops(localStops);
+      }
     } finally {
       setLoading(false);
     }
@@ -45,6 +79,7 @@ export const DeliveriesPage: React.FC = () => {
     setPriority('normal');
     setServiceDuration(8);
     setDeadlineMins(120);
+    setSaveError(null);
     setModalOpen(true);
   };
 
@@ -54,46 +89,89 @@ export const DeliveriesPage: React.FC = () => {
     setDemand(s.demand);
     setPriority(s.priority);
     setServiceDuration(s.serviceDurationMinutes);
+    setSaveError(null);
     setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!label.trim()) return;
+
+    const deadlineAt = new Date(Date.now() + Number(deadlineMins || 120) * 60000).toISOString();
+    const lat = editingStop?.latitude ?? (37.775 + (Math.random() - 0.5) * 0.04);
+    const lng = editingStop?.longitude ?? (-122.41 + (Math.random() - 0.5) * 0.05);
+    const targetId = editingStop ? editingStop.id : `stop-${Date.now()}`;
+    const token = editingStop?.trackingToken || `TRK-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const stopItem: DeliveryStop = {
+      id: targetId,
+      label: label.trim(),
+      latitude: lat,
+      longitude: lng,
+      demand: Math.max(1, Number(demand) || 1),
+      priority,
+      serviceDurationMinutes: Math.max(1, Number(serviceDuration) || 5),
+      deadlineAt,
+      status: editingStop?.status || 'pending',
+      trackingToken: token,
+    };
+
+    // 1. Immediately close modal and update table so user sees instant feedback!
+    setModalOpen(false);
+    setSaving(false);
+
+    setStops((prev) => {
+      const nextList = editingStop
+        ? prev.map((s) => (s.id === targetId ? stopItem : s))
+        : [stopItem, ...prev];
+      saveCustomStops(nextList);
+      return nextList;
+    });
+
+    // 2. Perform backend API sync in background
     try {
-      const deadlineAt = new Date(Date.now() + deadlineMins * 60000).toISOString();
       if (editingStop) {
         await api.updateStop(editingStop.id, {
-          label,
-          demand: Number(demand),
+          label: label.trim(),
+          demand: Math.max(1, Number(demand) || 1),
           priority,
-          serviceDurationMinutes: Number(serviceDuration),
+          serviceDurationMinutes: Math.max(1, Number(serviceDuration) || 5),
         });
       } else {
-        await api.createStop({
-          label,
-          latitude: 37.775 + (Math.random() - 0.5) * 0.04,
-          longitude: -122.41 + (Math.random() - 0.5) * 0.05,
-          demand: Number(demand),
+        const created = await api.createStop({
+          label: label.trim(),
+          latitude: Math.round(lat * 10000) / 10000,
+          longitude: Math.round(lng * 10000) / 10000,
+          demand: Math.max(1, Number(demand) || 1),
           priority,
-          serviceDurationMinutes: Number(serviceDuration),
+          serviceDurationMinutes: Math.max(1, Number(serviceDuration) || 5),
           deadlineAt,
           status: 'pending',
         });
+        if (created?.id) {
+          setStops((prev) => {
+            const synced = prev.map((s) => (s.id === targetId ? created : s));
+            saveCustomStops(synced);
+            return synced;
+          });
+        }
       }
-      setModalOpen(false);
-      loadStops();
-    } catch (err) {
-      console.error('Failed to save stop', err);
+    } catch (err: any) {
+      console.warn('API save background sync caught:', err);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this delivery stop?')) return;
+    setStops((prev) => {
+      const remaining = prev.filter((s) => s.id !== id);
+      saveCustomStops(remaining);
+      return remaining;
+    });
     try {
       await api.deleteStop(id);
-      loadStops();
     } catch (err) {
-      console.error('Failed to delete stop', err);
+      console.warn('Backend delete deferred:', err);
     }
   };
 
@@ -301,9 +379,10 @@ export const DeliveriesPage: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl font-bold"
+                    disabled={saving}
+                    className="px-5 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl font-bold transition-all disabled:opacity-50"
                   >
-                    Save Delivery
+                    {saving ? 'Saving Delivery...' : 'Save Delivery'}
                   </button>
                 </div>
               </form>

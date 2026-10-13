@@ -15,6 +15,7 @@ const API_BASE_URL = cleanBase.endsWith('/api') ? cleanBase : `${cleanBase}/api`
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 2500, // Responsive 2.5-second timeout for quick fallback
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,6 +27,34 @@ apiClient.interceptors.request.use((config) => {
   config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// Automatic Failover: If remote Render URL times out or is offline, seamlessly try local backend
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      originalRequest &&
+      !originalRequest._retried &&
+      (originalRequest.baseURL?.includes('onrender.com') || originalRequest.url?.includes('onrender.com')) &&
+      (error.code === 'ECONNABORTED' || error.message?.includes('timeout') || error.message?.includes('Network Error') || !error.response)
+    ) {
+      originalRequest._retried = true;
+      originalRequest.baseURL = 'http://localhost:4000/api';
+      console.warn('[API Client] Remote Render request failed/timed out. Retrying on local backend http://localhost:4000/api');
+      try {
+        return await axios({
+          ...originalRequest,
+          baseURL: 'http://localhost:4000/api',
+          timeout: 4000,
+        });
+      } catch (fallbackErr) {
+        return Promise.reject(fallbackErr);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const api = {
   // Health
