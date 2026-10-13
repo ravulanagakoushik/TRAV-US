@@ -15,6 +15,15 @@ import { SettingsPage } from './pages/SettingsPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
 
+// Simple authentication check
+const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const token = localStorage.getItem('routerescue_token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -24,8 +33,14 @@ export const App: React.FC = () => {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/track/:token" element={<TrackingPage />} />
 
-        {/* Authenticated Application Routes */}
-        <Route element={<AppLayout />}>
+        {/* Protected Application Routes */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/city" element={<CityPage />} />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../../services/api.js';
-import { RefreshCw, Database, Search, User, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../../services/supabase.js';
+import { RefreshCw, Database, Search, User, CheckCircle2, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface TopbarProps {
@@ -13,6 +14,8 @@ export const Topbar: React.FC<TopbarProps> = ({ title = 'Operations Overview', o
   const [trackingInput, setTrackingInput] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const userEmail = localStorage.getItem('routerescue_user_email') || 'dispatcher@routerescue.ai';
 
   const handleSeed = async () => {
     try {
@@ -50,6 +53,19 @@ export const Topbar: React.FC<TopbarProps> = ({ title = 'Operations Overview', o
     }
   };
 
+  const handleLogout = async () => {
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        // Continue logout locally
+      }
+    }
+    localStorage.removeItem('routerescue_token');
+    localStorage.removeItem('routerescue_user_email');
+    navigate('/login');
+  };
+
   return (
     <header className="h-16 bg-[#FFF9F0] border-b border-[#E2D1BC] px-6 flex items-center justify-between shrink-0 shadow-warm-sm z-20">
       <div className="flex items-center gap-4">
@@ -70,7 +86,7 @@ export const Topbar: React.FC<TopbarProps> = ({ title = 'Operations Overview', o
             placeholder="Track Stop (e.g. TRK-MED-8491)"
             value={trackingInput}
             onChange={(e) => setTrackingInput(e.target.value)}
-            className="w-56 text-xs bg-[#F3E8D7] border border-[#E2D1BC] text-[#382719] pl-8 pr-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B3925]"
+            className="w-52 text-xs bg-[#F3E8D7] border border-[#E2D1BC] text-[#382719] pl-8 pr-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B3925]"
           />
           <Search className="w-3.5 h-3.5 text-[#7A624E] absolute left-2.5 top-2.5" />
         </form>
@@ -96,16 +112,28 @@ export const Topbar: React.FC<TopbarProps> = ({ title = 'Operations Overview', o
           <span>Reset</span>
         </button>
 
-        {/* Operator Badge */}
+        {/* User Info Badge */}
         <div className="flex items-center gap-2 pl-2 border-l border-[#E2D1BC]">
-          <div className="w-8 h-8 rounded-full bg-[#E2D1BC] flex items-center justify-center text-[#5B3925] font-bold text-xs">
+          <div className="w-8 h-8 rounded-full bg-[#E2D1BC] flex items-center justify-center text-[#5B3925] font-bold text-xs shrink-0">
             <User className="w-4 h-4" />
           </div>
-          <div className="hidden lg:block text-left">
-            <div className="text-xs font-semibold text-[#382719]">Fleet Dispatcher</div>
-            <div className="text-[10px] text-[#7A624E]">Central Hub 01</div>
+          <div className="hidden lg:block text-left max-w-[130px] truncate">
+            <div className="text-xs font-semibold text-[#382719] truncate" title={userEmail}>
+              {userEmail.split('@')[0]}
+            </div>
+            <div className="text-[10px] text-[#7A624E]">Operator</div>
           </div>
         </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFEBEE] hover:bg-[#FFCDD2] text-[#B71C1C] border border-[#FFCDD2] rounded-lg text-xs font-bold transition-all shadow-sm"
+          title="Log out of application"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Logout</span>
+        </button>
       </div>
     </header>
   );

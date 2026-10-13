@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   Settings,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -66,8 +67,8 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Footer Info */}
-      <div className="p-4 border-t border-[#5B3925]/50 text-xs text-[#A68A72]">
+      {/* Footer Info & Logout */}
+      <div className="p-4 border-t border-[#5B3925]/50 space-y-3">
         <div className="bg-[#2B1B10] p-3 rounded-lg border border-[#5B3925]">
           <div className="flex items-center gap-2 text-[#E2D1BC] font-semibold text-xs mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -77,6 +78,18 @@ export const Sidebar: React.FC = () => {
             Deterministic heuristic optimizer + Gemini intelligence.
           </p>
         </div>
+
+        <button
+          onClick={() => {
+            localStorage.removeItem('routerescue_token');
+            localStorage.removeItem('routerescue_user_email');
+            window.location.href = '/login';
+          }}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#5B3925]/60 hover:bg-[#B71C1C] text-[#E2D1BC] hover:text-white text-xs font-semibold transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Log Out</span>
+        </button>
       </div>
     </aside>
   );
