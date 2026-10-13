@@ -253,15 +253,17 @@ export const api = {
     stopIds?: string[];
   }): Promise<OptimizationRun> => {
     try {
-      const res = await apiClient.post('/optimization/runs', options);
+      const res = await apiClient.post('/optimization/runs', options, { timeout: 1500 });
       if (res.data?.run) {
         localStorage.setItem('routerescue_latest_run', JSON.stringify(res.data.run));
+        localStorage.removeItem('routerescue_active_scenario');
         return res.data.run;
       }
     } catch {
-      console.warn('API runOptimization fallback to local calculation heuristic');
+      console.warn('API runOptimization fallback to fast local heuristic calculation');
     }
     const run = localDataService.runOptimization(options);
+    localStorage.removeItem('routerescue_active_scenario');
     return run;
   },
   getOptimizationRuns: async (): Promise<OptimizationRun[]> => {

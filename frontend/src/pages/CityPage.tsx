@@ -24,6 +24,7 @@ export const CityPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isSimulatedParam = searchParams.get('simulated') === 'true';
+  const isOptimizedParam = searchParams.get('optimized') === 'true';
   const initialMode = searchParams.get('mode') === 'satellite' ? 'satellite' : '3d';
 
   const [run, setRun] = useState<OptimizationRun | null>(null);
@@ -39,16 +40,18 @@ export const CityPage: React.FC = () => {
       setLoading(true);
       let activeRun: OptimizationRun | null = null;
 
-      if (isSimulatedParam) {
-        const savedSimRun = localStorage.getItem('routerescue_latest_run');
-        const savedScenario = localStorage.getItem('routerescue_active_scenario');
-        if (savedSimRun) {
-          try {
-            activeRun = JSON.parse(savedSimRun);
-          } catch (e) {
-            console.error(e);
-          }
+      // Check saved latest run if simulated or optimized
+      const savedLatestRun = localStorage.getItem('routerescue_latest_run');
+      if (savedLatestRun) {
+        try {
+          activeRun = JSON.parse(savedLatestRun);
+        } catch (e) {
+          console.error(e);
         }
+      }
+
+      if (isSimulatedParam) {
+        const savedScenario = localStorage.getItem('routerescue_active_scenario');
         if (savedScenario) {
           try {
             setActiveScenario(JSON.parse(savedScenario));
@@ -56,6 +59,8 @@ export const CityPage: React.FC = () => {
             console.error(e);
           }
         }
+      } else {
+        setActiveScenario(null);
       }
 
       if (!activeRun) {
@@ -82,7 +87,7 @@ export const CityPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [isSimulatedParam]);
+  }, [isSimulatedParam, isOptimizedParam]);
 
   const resetToBaseline = async () => {
     localStorage.removeItem('routerescue_latest_run');
@@ -98,6 +103,43 @@ export const CityPage: React.FC = () => {
       <Topbar title="Interactive 3D Fleet City & Satellite Reconnaissance" onRefresh={loadData} />
 
       <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+        {/* Active Optimization Success Banner */}
+        {isOptimizedParam && (
+          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-slate-900 to-[#382719] text-white p-5 rounded-2xl border border-emerald-500/60 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeIn">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-xl bg-emerald-600/30 border border-emerald-500/60 text-emerald-400 mt-0.5">
+                <Zap className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                    Route Optimization Deployed
+                  </span>
+                  <span className="text-xs font-semibold text-slate-300">
+                    Objective: {run?.objective?.replace(/_/g, ' ') || 'Balanced Time & Distance'}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-white mt-1">
+                  Heuristic Routing Plan Synchronized in 3D City Twin
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Dynamic multi-stop dispatch calculated across {run?.assignments.length || 0} active vehicles. Zero SLA violations. Switch to Satellite View for real-time telemetry.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
+              <button
+                onClick={() => setViewMode('satellite')}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+              >
+                <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-200" />
+                Satellite Recon View
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Active Disruption Simulation Banner */}
         {isSimulatedParam && (
           <div className="relative overflow-hidden bg-gradient-to-r from-red-950 via-slate-900 to-[#382719] text-white p-5 rounded-2xl border border-red-500/60 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeIn">

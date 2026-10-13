@@ -490,7 +490,10 @@ export const localDataService = {
   getVehicles: (): Vehicle[] => {
     try {
       const stored = localStorage.getItem('routerescue_custom_vehicles');
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {
       // ignore
     }
@@ -502,7 +505,10 @@ export const localDataService = {
   getStops: (): DeliveryStop[] => {
     try {
       const stored = localStorage.getItem('routerescue_custom_stops');
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {
       // ignore
     }

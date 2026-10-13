@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
+import { localDataService } from '../services/localDataService.js';
 import { OptimizationRun, OptimizationObjective } from '../types/index.js';
 import { Topbar } from '../components/layout/Topbar.js';
 import { MetricCard } from '../components/common/MetricCard.js';
@@ -81,8 +82,19 @@ export const OptimizationPage: React.FC = () => {
       });
       setRun(newRun);
       setLastOptimizedTimestamp(Date.now());
+      // Seamlessly redirect to the 3D City & Map View displaying the optimized solution!
+      setTimeout(() => {
+        navigate('/city?optimized=true');
+      }, 500);
     } catch (err) {
-      console.error('Optimization run failed', err);
+      console.warn('Optimization run fallback to direct local calculation:', err);
+      const fallbackRun = localDataService.runOptimization({
+        objective,
+        balanceWorkload,
+        prioritizeUrgent,
+      });
+      setRun(fallbackRun);
+      navigate('/city?optimized=true');
     } finally {
       setRunning(false);
     }
