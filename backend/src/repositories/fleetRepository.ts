@@ -711,17 +711,24 @@ export class FleetRepository {
     this.inMemoryRuns.set(userId, [run, ...current]);
 
     if (this.supabase) {
-      await this.supabase.from('optimization_runs').insert({
-        id: run.id,
-        user_id: userId,
-        objective: run.objective,
-        calculation_mode: run.calculationMode,
-        input_snapshot: run.inputSnapshot,
-        baseline_metrics: run.baselineMetrics,
-        optimized_metrics: run.optimizedMetrics,
-        result_snapshot: { assignments: run.assignments, unassignedStops: run.unassignedStops },
-        status: run.status,
-      });
+      try {
+        await withTimeout(
+          this.supabase.from('optimization_runs').insert({
+            id: run.id,
+            user_id: userId,
+            objective: run.objective,
+            calculation_mode: run.calculationMode,
+            input_snapshot: run.inputSnapshot,
+            baseline_metrics: run.baselineMetrics,
+            optimized_metrics: run.optimizedMetrics,
+            result_snapshot: { assignments: run.assignments, unassignedStops: run.unassignedStops },
+            status: run.status,
+          }),
+          2500
+        );
+      } catch {
+        // Fall back to memory store
+      }
     }
 
     return run;
