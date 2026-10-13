@@ -1,0 +1,316 @@
+import React, { useEffect, useState } from 'react';
+import { api } from '../services/api.js';
+import { DeliveryStop, PriorityLevel } from '../types/index.js';
+import { Topbar } from '../components/layout/Topbar.js';
+import { StatusBadge } from '../components/common/StatusBadge.js';
+import { Package, Plus, Trash2, Edit3, X, ExternalLink, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export const DeliveriesPage: React.FC = () => {
+  const [stops, setStops] = useState<DeliveryStop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingStop, setEditingStop] = useState<DeliveryStop | null>(null);
+
+  // Form state
+  const [label, setLabel] = useState('');
+  const [demand, setDemand] = useState(4);
+  const [priority, setPriority] = useState<PriorityLevel>('normal');
+  const [serviceDuration, setServiceDuration] = useState(8);
+  const [deadlineMins, setDeadlineMins] = useState(120);
+
+  const navigate = useNavigate();
+
+  const loadStops = async () => {
+    try {
+      setLoading(true);
+      const list = await api.getStops();
+      setStops(list);
+    } catch (err) {
+      console.error('Failed to load stops', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStops();
+  }, []);
+
+  const openCreateModal = () => {
+    setEditingStop(null);
+    setLabel('');
+    setDemand(4);
+    setPriority('normal');
+    setServiceDuration(8);
+    setDeadlineMins(120);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (s: DeliveryStop) => {
+    setEditingStop(s);
+    setLabel(s.label);
+    setDemand(s.demand);
+    setPriority(s.priority);
+    setServiceDuration(s.serviceDurationMinutes);
+    setModalOpen(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const deadlineAt = new Date(Date.now() + deadlineMins * 60000).toISOString();
+      if (editingStop) {
+        await api.updateStop(editingStop.id, {
+          label,
+          demand: Number(demand),
+          priority,
+          serviceDurationMinutes: Number(serviceDuration),
+        });
+      } else {
+        await api.createStop({
+          label,
+          latitude: 37.775 + (Math.random() - 0.5) * 0.04,
+          longitude: -122.41 + (Math.random() - 0.5) * 0.05,
+          demand: Number(demand),
+          priority,
+          serviceDurationMinutes: Number(serviceDuration),
+          deadlineAt,
+          status: 'pending',
+        });
+      }
+      setModalOpen(false);
+      loadStops();
+    } catch (err) {
+      console.error('Failed to save stop', err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this delivery stop?')) return;
+    try {
+      await api.deleteStop(id);
+      loadStops();
+    } catch (err) {
+      console.error('Failed to delete stop', err);
+    }
+  };
+
+  const filteredStops = stops.filter((s) => {
+    if (filterPriority === 'all') return true;
+    return s.priority === filterPriority;
+  });
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F3E8D7]">
+      <Topbar title="Delivery Stops & Demands" onRefresh={loadStops} />
+
+      <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-[#382719] flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#5B3925]" />
+              Scheduled Delivery Stops ({filteredStops.length})
+            </h2>
+            <p className="text-xs text-[#7A624E]">
+              Destination delivery requests, package payloads, and customer tracking tokens
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Filter */}
+            <div className="flex items-center gap-2 bg-[#FFF9F0] px-3 py-1.5 rounded-xl border border-[#E2D1BC] text-xs">
+              <Filter className="w-3.5 h-3.5 text-[#7A624E]" />
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="bg-transparent font-semibold text-[#382719] focus:outline-none"
+              >
+                <option value="all">All Priorities</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            <button
+              onClick={openCreateModal}
+              className="px-4 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Delivery Stop</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Deliveries Table Card */}
+        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#F3E8D7] text-[#5B3925] uppercase tracking-wider font-semibold">
+                <tr>
+                  <th className="py-2.5 px-3 rounded-l-lg">Destination Label</th>
+                  <th className="py-2.5 px-3">Priority</th>
+                  <th className="py-2.5 px-3">Demand</th>
+                  <th className="py-2.5 px-3">Dwell Duration</th>
+                  <th className="py-2.5 px-3">Customer Tracking Ref</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right rounded-r-lg">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2D1BC]/60">
+                {filteredStops.map((s) => (
+                  <tr key={s.id} className="hover:bg-[#F3E8D7]/30 transition-colors">
+                    <td className="py-3 px-3 font-bold text-[#382719] max-w-xs truncate">
+                      {s.label}
+                    </td>
+                    <td className="py-3 px-3">
+                      <StatusBadge status={s.priority} type="priority" />
+                    </td>
+                    <td className="py-3 px-3 font-semibold text-[#5B3925]">{s.demand} pkgs</td>
+                    <td className="py-3 px-3 text-[#7A624E]">{s.serviceDurationMinutes} mins</td>
+                    <td className="py-3 px-3">
+                      {s.trackingToken ? (
+                        <button
+                          onClick={() => navigate(`/track/${s.trackingToken}`)}
+                          className="font-mono text-xs text-[#1565C0] hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <span>{s.trackingToken}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      ) : (
+                        <span className="text-[#7A624E]">Pending</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">
+                      <StatusBadge status={s.status} />
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEditModal(s)}
+                          className="p-1.5 text-[#5B3925] hover:bg-[#F3E8D7] rounded-lg transition-colors"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(s.id)}
+                          className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Modal Form */}
+        {modalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-2xl w-full max-w-md p-6 shadow-warm-lg">
+              <div className="flex items-center justify-between pb-3 border-b border-[#E2D1BC]">
+                <h3 className="font-bold text-base text-[#382719]">
+                  {editingStop ? 'Edit Delivery Stop' : 'Create Delivery Stop'}
+                </h3>
+                <button
+                  onClick={() => setModalOpen(false)}
+                  className="p-1 text-[#7A624E] hover:text-[#382719]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="mt-4 space-y-4 text-xs">
+                <div>
+                  <label className="font-semibold text-[#5B3925]">Destination Label</label>
+                  <input
+                    type="text"
+                    required
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    placeholder="e.g. St. Mary General Hospital"
+                    className="w-full mt-1 px-3 py-2 bg-white border border-[#E2D1BC] rounded-lg text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-[#5B3925]">Package Demand</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={demand}
+                      onChange={(e) => setDemand(parseInt(e.target.value, 10))}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-[#E2D1BC] rounded-lg text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-[#5B3925]">Priority</label>
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value as any)}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-[#E2D1BC] rounded-lg text-xs"
+                    >
+                      <option value="urgent">Urgent</option>
+                      <option value="high">High</option>
+                      <option value="normal">Normal</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-[#5B3925]">Service Dwell (mins)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={serviceDuration}
+                      onChange={(e) => setServiceDuration(parseInt(e.target.value, 10))}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-[#E2D1BC] rounded-lg text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-[#5B3925]">Deadline Buffer (mins)</label>
+                    <input
+                      type="number"
+                      min="10"
+                      value={deadlineMins}
+                      onChange={(e) => setDeadlineMins(parseInt(e.target.value, 10))}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-[#E2D1BC] rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-[#E2D1BC]">
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className="px-4 py-2 bg-[#F3E8D7] text-[#5B3925] rounded-xl font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl font-bold"
+                  >
+                    Save Delivery
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
