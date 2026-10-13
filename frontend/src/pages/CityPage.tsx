@@ -104,6 +104,7 @@ export const CityPage: React.FC = () => {
           <div className={`${viewMode === 'split' ? 'lg:col-span-3' : 'lg:col-span-3'} space-y-4`}>
             {viewMode === '3d' && (
               <CityScene
+                stops={stops}
                 assignments={run?.assignments || []}
                 selectedVehicleId={selectedVehicleId}
                 onSelectVehicle={setSelectedVehicleId}
@@ -123,6 +124,7 @@ export const CityPage: React.FC = () => {
             {viewMode === 'split' && (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <CityScene
+                  stops={stops}
                   assignments={run?.assignments || []}
                   selectedVehicleId={selectedVehicleId}
                   onSelectVehicle={setSelectedVehicleId}
