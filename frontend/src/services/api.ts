@@ -9,7 +9,9 @@ import {
   OptimizationObjective,
 } from '../types/index.js';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+const cleanBase = rawBase.replace(/\/+$/, '');
+const API_BASE_URL = cleanBase.endsWith('/api') ? cleanBase : `${cleanBase}/api`;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
