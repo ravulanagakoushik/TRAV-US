@@ -107,9 +107,9 @@ export const OptimizationPage: React.FC = () => {
             <button
               onClick={handleRunOptimization}
               disabled={running}
-              className="px-6 py-2.5 bg-[#5B3925] text-[#FFF9F0] hover:bg-[#382416] rounded-xl font-bold text-sm shadow-warm flex items-center gap-2 transition-all disabled:opacity-50"
+              className="group px-6 py-2.5 bg-[#5B3925] text-[#FFF9F0] hover:bg-[#382416] rounded-xl font-bold text-sm shadow-warm hover:shadow-warm-xl hover:scale-105 active:scale-95 flex items-center gap-2 transition-all duration-200 disabled:opacity-50"
             >
-              <Play className="w-4 h-4 fill-current" />
+              <Play className="w-4 h-4 fill-current transition-transform duration-200 group-hover:scale-110" />
               <span>{running ? 'Calculating Heuristic...' : 'Run Optimization'}</span>
             </button>
           </div>
@@ -120,16 +120,16 @@ export const OptimizationPage: React.FC = () => {
               <div
                 key={obj.id}
                 onClick={() => setObjective(obj.id)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-warm-md ${
                   objective === obj.id
                     ? 'bg-[#F3E8D7] border-[#5B3925] shadow-sm ring-1 ring-[#5B3925]'
-                    : 'bg-white border-[#E2D1BC] hover:border-[#8B6344]'
+                    : 'bg-white border-[#E2D1BC] hover:border-[#A66B38]'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <h4 className="font-bold text-sm text-[#382719]">{obj.title}</h4>
                   {objective === obj.id && (
-                    <CheckCircle2 className="w-4 h-4 text-[#5B3925]" />
+                    <CheckCircle2 className="w-4 h-4 text-[#5B3925] animate-pulse" />
                   )}
                 </div>
                 <p className="text-xs text-[#7A624E] leading-relaxed">{obj.desc}</p>

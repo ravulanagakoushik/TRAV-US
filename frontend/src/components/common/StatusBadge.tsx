@@ -11,30 +11,30 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'status
       case 'available':
       case 'completed':
       case 'low':
-        return 'bg-[#E8F5E9] text-[#2E7D32] border-[#C8E6C9]';
+        return 'bg-[#E8F5E9] text-[#2E7D32] border-[#C8E6C9] hover:bg-[#D4EDDA]';
       case 'active':
       case 'in_transit':
       case 'normal':
-        return 'bg-[#E3F2FD] text-[#1565C0] border-[#BBDEFB]';
+        return 'bg-[#E3F2FD] text-[#1565C0] border-[#BBDEFB] hover:bg-[#BBDEFB]';
       case 'pending':
       case 'high':
       case 'medium':
-        return 'bg-[#FEF3D6] text-[#C67D0A] border-[#FFE082]';
+        return 'bg-[#FEF3D6] text-[#C67D0A] border-[#FFE082] hover:bg-[#FEE9B5]';
       case 'urgent':
       case 'unavailable':
       case 'maintenance':
       case 'cancelled':
-        return 'bg-[#FFEBEE] text-[#B71C1C] border-[#FFCDD2]';
+        return 'bg-[#FFEBEE] text-[#B71C1C] border-[#FFCDD2] hover:bg-[#FFCDD2]';
       default:
-        return 'bg-[#F3E8D7] text-[#5B3925] border-[#E2D1BC]';
+        return 'bg-[#F3E8D7] text-[#5B3925] border-[#E2D1BC] hover:bg-[#E8D9C5]';
     }
   };
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getBadgeStyle()}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all duration-200 hover:scale-105 hover:shadow-sm cursor-default select-none ${getBadgeStyle()}`}
     >
-      <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-current opacity-80" />
+      <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-current opacity-80 animate-pulse" />
       {status.replace('_', ' ').toUpperCase()}
     </span>
   );

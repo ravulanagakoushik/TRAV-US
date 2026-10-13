@@ -69,69 +69,72 @@ export const Topbar: React.FC<TopbarProps> = ({ title = 'Operations Overview', o
   return (
     <header className="h-16 bg-[#FFF9F0] border-b border-[#E2D1BC] px-6 flex items-center justify-between shrink-0 shadow-warm-sm z-20">
       <div className="flex items-center gap-4">
-        <h2 className="text-lg font-bold text-[#382719]">{title}</h2>
+        <h2 className="text-lg font-bold text-[#382719] tracking-tight hover:text-[#5B3925] transition-colors duration-200">
+          {title}
+        </h2>
         {successMessage && (
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-full animate-fadeIn">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-full animate-fadeIn shadow-sm hover:scale-105 transition-transform duration-200">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
             <span>{successMessage}</span>
           </div>
         )}
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Quick Customer Tracking Input */}
-        <form onSubmit={handleTrackSubmit} className="relative hidden md:block">
+        {/* Quick Customer Tracking Input with hover and focus scale */}
+        <form onSubmit={handleTrackSubmit} className="relative hidden md:block group">
           <input
             type="text"
             placeholder="Track Stop (e.g. TRK-MED-8491)"
             value={trackingInput}
             onChange={(e) => setTrackingInput(e.target.value)}
-            className="w-52 text-xs bg-[#F3E8D7] border border-[#E2D1BC] text-[#382719] pl-8 pr-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B3925]"
+            className="w-52 text-xs bg-[#F3E8D7] border border-[#E2D1BC] text-[#382719] pl-8 pr-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B3925] focus:scale-[1.02] focus:bg-white hover:border-[#A66B38] transition-all duration-200 shadow-sm"
           />
-          <Search className="w-3.5 h-3.5 text-[#7A624E] absolute left-2.5 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-[#7A624E] absolute left-2.5 top-2.5 group-hover:scale-110 group-hover:text-[#5B3925] transition-transform duration-200" />
         </form>
 
-        {/* Demo Seed and Reset Buttons */}
+        {/* Demo Seed Button with hover scale, shadow and icon spin */}
         <button
           onClick={handleSeed}
           disabled={seeding}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5B3925] text-[#FFF9F0] hover:bg-[#382416] text-xs font-semibold rounded-lg shadow-sm transition-colors"
+          className="group flex items-center gap-1.5 px-3.5 py-1.5 bg-[#5B3925] text-[#FFF9F0] hover:bg-[#382416] text-xs font-semibold rounded-lg shadow-sm hover:shadow-lg hover:shadow-[#5B3925]/25 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-60"
           title="Seed realistic Metro dataset for hackathon judges"
         >
-          <Database className="w-3.5 h-3.5" />
+          <Database className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-115 group-hover:-rotate-6" />
           <span>{seeding ? 'Seeding...' : 'Load Sample Data'}</span>
         </button>
 
+        {/* Reset Button with hover scale, border color shift */}
         <button
           onClick={handleReset}
           disabled={seeding}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F3E8D7] text-[#5B3925] hover:bg-[#E2D1BC] text-xs font-semibold rounded-lg border border-[#E2D1BC] transition-colors"
+          className="group flex items-center gap-1.5 px-3 py-1.5 bg-[#F3E8D7] text-[#5B3925] hover:bg-[#E2D1BC] hover:border-[#A66B38] text-xs font-semibold rounded-lg border border-[#E2D1BC] shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-60"
           title="Reset to default fleet state"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw className={`w-3.5 h-3.5 transition-transform duration-300 group-hover:rotate-180 ${seeding ? 'animate-spin' : ''}`} />
           <span>Reset</span>
         </button>
 
-        {/* User Info Badge */}
-        <div className="flex items-center gap-2 pl-2 border-l border-[#E2D1BC]">
-          <div className="w-8 h-8 rounded-full bg-[#E2D1BC] flex items-center justify-center text-[#5B3925] font-bold text-xs shrink-0">
-            <User className="w-4 h-4" />
+        {/* User Info Badge with hover scale */}
+        <div className="flex items-center gap-2 pl-2 border-l border-[#E2D1BC] group cursor-pointer">
+          <div className="w-8 h-8 rounded-full bg-[#E2D1BC] group-hover:bg-[#5B3925] group-hover:text-[#FFF9F0] flex items-center justify-center text-[#5B3925] font-bold text-xs shrink-0 shadow-sm transition-all duration-200 group-hover:scale-110">
+            <User className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
           </div>
           <div className="hidden lg:block text-left max-w-[130px] truncate">
-            <div className="text-xs font-semibold text-[#382719] truncate" title={userEmail}>
+            <div className="text-xs font-semibold text-[#382719] group-hover:text-[#5B3925] truncate transition-colors duration-200" title={userEmail}>
               {userEmail.split('@')[0]}
             </div>
             <div className="text-[10px] text-[#7A624E]">Operator</div>
           </div>
         </div>
 
-        {/* Logout Button */}
+        {/* Logout Button with hover scale, shadow and color change */}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFEBEE] hover:bg-[#FFCDD2] text-[#B71C1C] border border-[#FFCDD2] rounded-lg text-xs font-bold transition-all shadow-sm"
+          className="group flex items-center gap-1.5 px-3 py-1.5 bg-[#FFEBEE] hover:bg-[#B71C1C] text-[#B71C1C] hover:text-[#FFF9F0] border border-[#FFCDD2] hover:border-[#B71C1C] rounded-lg text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
           title="Log out of application"
         >
-          <LogOut className="w-3.5 h-3.5" />
+          <LogOut className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
           <span>Logout</span>
         </button>
       </div>

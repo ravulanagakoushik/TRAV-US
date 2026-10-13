@@ -118,10 +118,10 @@ export const AdvisorPage: React.FC = () => {
                     setTaskType(sq.type);
                     handleAsk(sq.q, sq.type);
                   }}
-                  className="p-3 text-left rounded-xl bg-[#F3E8D7]/60 hover:bg-[#F3E8D7] border border-[#E2D1BC] text-xs font-semibold text-[#382719] transition-all flex items-start gap-2 hover:border-[#8B6344]"
+                  className="group p-3 text-left rounded-xl bg-[#F3E8D7]/60 hover:bg-[#F3E8D7] border border-[#E2D1BC] text-xs font-semibold text-[#382719] transition-all duration-200 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-md hover:border-[#A66B38] flex items-start gap-2 cursor-pointer"
                 >
-                  <HelpCircle className="w-4 h-4 text-[#A66B38] shrink-0 mt-0.5" />
-                  <span className="leading-snug">{sq.q}</span>
+                  <HelpCircle className="w-4 h-4 text-[#A66B38] shrink-0 mt-0.5 transition-transform duration-200 group-hover:scale-115 group-hover:rotate-6" />
+                  <span className="leading-snug group-hover:text-[#5B3925] transition-colors">{sq.q}</span>
                 </button>
               ))}
             </div>
@@ -140,14 +140,14 @@ export const AdvisorPage: React.FC = () => {
               placeholder="Ask RouteRescue AI (e.g. Why did vehicle Sprinter Bravo receive 8 stops?)..."
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              className="flex-1 px-4 py-3 bg-white border border-[#E2D1BC] rounded-xl text-xs text-[#382719] focus:outline-none focus:ring-2 focus:ring-[#5B3925]"
+              className="flex-1 px-4 py-3 bg-white border border-[#E2D1BC] rounded-xl text-xs text-[#382719] focus:outline-none focus:ring-2 focus:ring-[#5B3925] focus:scale-[1.005] hover:border-[#A66B38] transition-all duration-200 shadow-sm"
             />
             <button
               type="submit"
               disabled={asking || !question.trim()}
-              className="px-6 py-3 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all disabled:opacity-50"
+              className="group px-6 py-3 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm hover:shadow-lg hover:shadow-[#5B3925]/30 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1 group-hover:-translate-y-0.5" />
               <span>{asking ? 'Analyzing Fleet...' : 'Consult Advisor'}</span>
             </button>
           </form>

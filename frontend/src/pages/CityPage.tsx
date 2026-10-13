@@ -61,13 +61,13 @@ export const CityPage: React.FC = () => {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 bg-[#F3E8D7] p-1 rounded-lg border border-[#E2D1BC]">
+          <div className="flex items-center gap-2 bg-[#F3E8D7] p-1 rounded-xl border border-[#E2D1BC] shadow-sm">
             <button
               onClick={() => setViewMode('3d')}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 ${
                 viewMode === '3d'
                   ? 'bg-[#5B3925] text-[#FFF9F0] shadow-sm'
-                  : 'text-[#7A624E] hover:text-[#382719]'
+                  : 'text-[#7A624E] hover:text-[#382719] hover:bg-white/60'
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
@@ -75,10 +75,10 @@ export const CityPage: React.FC = () => {
             </button>
             <button
               onClick={() => setViewMode('split')}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 ${
                 viewMode === 'split'
                   ? 'bg-[#5B3925] text-[#FFF9F0] shadow-sm'
-                  : 'text-[#7A624E] hover:text-[#382719]'
+                  : 'text-[#7A624E] hover:text-[#382719] hover:bg-white/60'
               }`}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -86,10 +86,10 @@ export const CityPage: React.FC = () => {
             </button>
             <button
               onClick={() => setViewMode('2d')}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 ${
                 viewMode === '2d'
                   ? 'bg-[#5B3925] text-[#FFF9F0] shadow-sm'
-                  : 'text-[#7A624E] hover:text-[#382719]'
+                  : 'text-[#7A624E] hover:text-[#382719] hover:bg-white/60'
               }`}
             >
               <Map className="w-3.5 h-3.5" />
@@ -227,10 +227,10 @@ export const CityPage: React.FC = () => {
                     <button
                       key={a.vehicleId}
                       onClick={() => setSelectedVehicleId(a.vehicleId)}
-                      className="w-full p-2 text-left rounded-lg bg-[#F3E8D7] hover:bg-[#E2D1BC] text-xs font-semibold text-[#382719] flex items-center justify-between transition-colors"
+                      className="group w-full p-2.5 text-left rounded-xl bg-[#F3E8D7] hover:bg-[#5B3925] hover:text-[#FFF9F0] text-xs font-semibold text-[#382719] flex items-center justify-between transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-pointer"
                     >
-                      <span className="truncate">{a.vehicleName}</span>
-                      <span className="text-[#5B3925] font-bold">{a.stopsCount} stops</span>
+                      <span className="truncate group-hover:translate-x-1 transition-transform">{a.vehicleName}</span>
+                      <span className="text-[#5B3925] group-hover:text-amber-200 font-bold transition-colors">{a.stopsCount} stops</span>
                     </button>
                   ))}
                 </div>

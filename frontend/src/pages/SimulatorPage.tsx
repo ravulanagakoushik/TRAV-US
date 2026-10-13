@@ -132,9 +132,9 @@ export const SimulatorPage: React.FC = () => {
             <button
               onClick={handleRunSimulation}
               disabled={simulating || !baselineRun}
-              className="px-6 py-2.5 bg-[#B71C1C] text-white hover:bg-red-800 rounded-xl font-bold text-sm shadow-warm flex items-center gap-2 transition-all disabled:opacity-50"
+              className="group px-6 py-2.5 bg-[#B71C1C] text-white hover:bg-red-800 rounded-xl font-bold text-sm shadow-warm hover:shadow-xl hover:shadow-red-900/30 hover:scale-105 active:scale-95 flex items-center gap-2 transition-all duration-200 disabled:opacity-50"
             >
-              <Zap className="w-4 h-4 fill-current" />
+              <Zap className="w-4 h-4 fill-current transition-transform duration-200 group-hover:scale-115 group-hover:rotate-12" />
               <span>{simulating ? 'Simulating Dynamic Reroute...' : 'Execute Disruption Simulation'}</span>
             </button>
           </div>
@@ -172,10 +172,10 @@ export const SimulatorPage: React.FC = () => {
                   else if (tab.id === 'road_closure') setScenarioName('Central Transit Corridor Blockade');
                   else if (tab.id === 'urgent_delivery') setScenarioName('Urgent Hospital Dispatch Insertion');
                 }}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-warm-md ${
                   scenarioType === tab.id
                     ? 'bg-[#F3E8D7] border-[#B71C1C] ring-1 ring-[#B71C1C]'
-                    : 'bg-white border-[#E2D1BC] hover:border-[#8B6344]'
+                    : 'bg-white border-[#E2D1BC] hover:border-[#B71C1C]'
                 }`}
               >
                 <h4 className="font-bold text-sm text-[#382719] mb-1">{tab.label}</h4>

@@ -215,16 +215,16 @@ export const DeliveriesPage: React.FC = () => {
 
             <button
               onClick={openCreateModal}
-              className="px-4 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+              className="group px-4 py-2.5 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm hover:shadow-lg hover:shadow-[#5B3925]/30 hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
               <span>Add Delivery Stop</span>
             </button>
           </div>
         </div>
 
         {/* Deliveries Table Card */}
-        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm">
+        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm card-hover-effect">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#F3E8D7] text-[#5B3925] uppercase tracking-wider font-semibold">
@@ -240,8 +240,8 @@ export const DeliveriesPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-[#E2D1BC]/60">
                 {filteredStops.map((s) => (
-                  <tr key={s.id} className="hover:bg-[#F3E8D7]/30 transition-colors">
-                    <td className="py-3 px-3 font-bold text-[#382719] max-w-xs truncate">
+                  <tr key={s.id} className="table-row-hover hover:scale-[1.002] transition-all duration-150 cursor-default">
+                    <td className="py-3 px-3 font-bold text-[#382719] hover:text-[#5B3925] max-w-xs truncate transition-colors">
                       {s.label}
                     </td>
                     <td className="py-3 px-3">
@@ -253,10 +253,10 @@ export const DeliveriesPage: React.FC = () => {
                       {s.trackingToken ? (
                         <button
                           onClick={() => navigate(`/track/${s.trackingToken}`)}
-                          className="font-mono text-xs text-[#1565C0] hover:underline flex items-center gap-1 font-semibold"
+                          className="font-mono text-xs text-[#1565C0] hover:text-[#0D47A1] hover:scale-105 inline-flex items-center gap-1 font-semibold transition-transform duration-150"
                         >
                           <span>{s.trackingToken}</span>
-                          <ExternalLink className="w-3 h-3" />
+                          <ExternalLink className="w-3 h-3 transition-transform duration-150 group-hover:translate-x-0.5" />
                         </button>
                       ) : (
                         <span className="text-[#7A624E]">Pending</span>
@@ -269,13 +269,15 @@ export const DeliveriesPage: React.FC = () => {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openEditModal(s)}
-                          className="p-1.5 text-[#5B3925] hover:bg-[#F3E8D7] rounded-lg transition-colors"
+                          className="p-1.5 text-[#5B3925] hover:bg-[#F3E8D7] rounded-lg hover:scale-125 active:scale-90 transition-all duration-150 shadow-none hover:shadow-sm"
+                          title="Edit stop"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(s.id)}
-                          className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg hover:scale-125 active:scale-90 transition-all duration-150 shadow-none hover:shadow-sm"
+                          title="Delete stop"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

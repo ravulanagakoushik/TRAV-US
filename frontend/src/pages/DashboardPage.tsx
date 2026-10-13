@@ -165,9 +165,9 @@ export const DashboardPage: React.FC = () => {
 
       <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
         {/* Banner with What-If Simulator callout */}
-        <div className="bg-gradient-to-r from-[#382416] to-[#5B3925] rounded-2xl p-6 text-[#FFF9F0] shadow-warm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-[#382416] via-[#4A2F1C] to-[#5B3925] rounded-2xl p-6 text-[#FFF9F0] shadow-warm hover:shadow-warm-xl transition-all duration-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#A66B38]/50 text-xs font-semibold text-[#FFF9F0] mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#A66B38]/50 text-xs font-semibold text-[#FFF9F0] mb-2 hover:scale-105 transition-transform duration-200 cursor-default">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
               Dynamic Dispatch Intelligence Active
             </div>
@@ -181,17 +181,17 @@ export const DashboardPage: React.FC = () => {
           <div className="flex gap-2.5 shrink-0">
             <button
               onClick={() => navigate('/city')}
-              className="px-4 py-2 bg-[#FFF9F0] text-[#382416] hover:bg-[#F3E8D7] rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+              className="px-4 py-2.5 bg-[#FFF9F0] text-[#382416] hover:bg-white hover:text-[#5B3925] rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              <Building2 className="w-4 h-4" />
+              <Building2 className="w-4 h-4 transition-transform duration-200 hover:rotate-6" />
               3D City View
             </button>
             <button
               onClick={() => navigate('/simulator')}
-              className="px-4 py-2 bg-[#A66B38] text-white hover:bg-[#8B6344] rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+              className="group px-4 py-2.5 bg-[#A66B38] text-white hover:bg-[#8B6344] rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm hover:shadow-accent-glow hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              What-If Simulator
-              <ArrowRight className="w-4 h-4" />
+              <span>What-If Simulator</span>
+              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
             </button>
           </div>
         </div>
@@ -250,13 +250,13 @@ export const DashboardPage: React.FC = () => {
         {/* Workload and Route Analytics Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Workload Distribution Chart */}
-          <div className="lg:col-span-2 bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm">
+          <div className="lg:col-span-2 bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm card-hover-effect">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-bold text-[#382719] text-base">Vehicle Workload & Capacity Utilization</h3>
                 <p className="text-xs text-[#7A624E]">Delivered package volume vs max vehicle payload</p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 bg-[#F3E8D7] text-[#5B3925] rounded-lg">
+              <span className="text-xs font-semibold px-2.5 py-1 bg-[#F3E8D7] text-[#5B3925] rounded-lg hover:scale-105 transition-transform duration-200 cursor-default">
                 Active Shifts
               </span>
             </div>
@@ -280,6 +280,7 @@ export const DashboardPage: React.FC = () => {
                         borderRadius: '8px',
                         color: '#382719',
                         fontSize: '12px',
+                        boxShadow: '0 8px 16px rgba(56, 36, 22, 0.12)',
                       }}
                     />
                     <Bar dataKey="deliveredDemand" name="Delivered Pkgs" fill="#5B3925" radius={[4, 4, 0, 0]} />
@@ -295,20 +296,20 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Real-Time Operational Alerts */}
-          <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm flex flex-col">
+          <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm card-hover-effect flex flex-col">
             <h3 className="font-bold text-[#382719] text-base mb-1">Operational Alerts</h3>
             <p className="text-xs text-[#7A624E] mb-4">Constraint triggers and delay advisories</p>
 
-            <div className="space-y-3 flex-1 overflow-y-auto">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1">
               {data?.alerts && data.alerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className={`p-3 rounded-lg border text-xs ${
+                  className={`p-3 rounded-xl border text-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:-translate-y-0.5 cursor-pointer ${
                     alert.type === 'danger'
-                      ? 'bg-[#FFEBEE] border-[#FFCDD2] text-[#B71C1C]'
+                      ? 'bg-[#FFEBEE] border-[#FFCDD2] text-[#B71C1C] hover:border-red-400'
                       : alert.type === 'warning'
-                      ? 'bg-[#FEF3D6] border-[#FFE082] text-[#C67D0A]'
-                      : 'bg-[#E3F2FD] border-[#BBDEFB] text-[#1565C0]'
+                      ? 'bg-[#FEF3D6] border-[#FFE082] text-[#C67D0A] hover:border-amber-400'
+                      : 'bg-[#E3F2FD] border-[#BBDEFB] text-[#1565C0] hover:border-blue-400'
                   }`}
                 >
                   <div className="font-bold mb-0.5">{alert.title}</div>
@@ -319,16 +320,16 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={() => navigate('/advisor')}
-              className="mt-4 w-full py-2 bg-[#F3E8D7] text-[#5B3925] hover:bg-[#E2D1BC] rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+              className="group mt-4 w-full py-2.5 bg-[#F3E8D7] text-[#5B3925] hover:bg-[#5B3925] hover:text-[#FFF9F0] rounded-xl font-bold text-xs transition-all duration-200 hover:scale-[1.02] active:scale-98 hover:shadow-md flex items-center justify-center gap-1.5"
             >
               <span>Ask AI Advisor for Mitigation Plan</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
             </button>
           </div>
         </div>
 
         {/* Assigned Vehicles Table */}
-        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm">
+        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm card-hover-effect">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-bold text-[#382719] text-base">Active Fleet Dispatch Status</h3>
@@ -336,9 +337,10 @@ export const DashboardPage: React.FC = () => {
             </div>
             <button
               onClick={() => navigate('/optimization')}
-              className="text-xs font-bold text-[#5B3925] hover:underline"
+              className="group text-xs font-bold text-[#5B3925] hover:text-[#A66B38] flex items-center gap-1 transition-all duration-200 hover:translate-x-1"
             >
-              Run New Optimization &rarr;
+              <span>Run New Optimization</span>
+              <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
             </button>
           </div>
 
@@ -356,7 +358,7 @@ export const DashboardPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-[#E2D1BC]/60">
                 {data?.vehicleWorkloads && data.vehicleWorkloads.map((v) => (
-                  <tr key={v.vehicleId} className="hover:bg-[#F3E8D7]/30 transition-colors">
+                  <tr key={v.vehicleId} className="table-row-hover hover:scale-[1.002] transition-all duration-150 cursor-default">
                     <td className="py-3 px-3 font-bold text-[#382719]">{v.name}</td>
                     <td className="py-3 px-3 text-[#7A624E]">{v.vehicleType}</td>
                     <td className="py-3 px-3">

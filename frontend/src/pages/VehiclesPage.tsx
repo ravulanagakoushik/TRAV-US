@@ -183,15 +183,15 @@ export const VehiclesPage: React.FC = () => {
 
           <button
             onClick={openCreateModal}
-            className="px-4 py-2 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+            className="group px-4 py-2.5 bg-[#5B3925] text-white hover:bg-[#382416] rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm hover:shadow-lg hover:shadow-[#5B3925]/30 hover:scale-105 active:scale-95 transition-all duration-200"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
             <span>Add Vehicle</span>
           </button>
         </div>
 
         {/* Vehicles Table Card */}
-        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm">
+        <div className="bg-[#FFF9F0] border border-[#E2D1BC] rounded-xl p-5 shadow-warm card-hover-effect">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#F3E8D7] text-[#5B3925] uppercase tracking-wider font-semibold">
@@ -206,8 +206,8 @@ export const VehiclesPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-[#E2D1BC]/60">
                 {vehicles.map((v) => (
-                  <tr key={v.id} className="hover:bg-[#F3E8D7]/30 transition-colors">
-                    <td className="py-3 px-3 font-bold text-[#382719]">{v.name}</td>
+                  <tr key={v.id} className="table-row-hover hover:scale-[1.002] transition-all duration-150 cursor-default">
+                    <td className="py-3 px-3 font-bold text-[#382719] hover:text-[#5B3925] transition-colors">{v.name}</td>
                     <td className="py-3 px-3 text-[#7A624E]">{v.vehicleType}</td>
                     <td className="py-3 px-3 font-semibold text-[#5B3925]">{v.capacity} units</td>
                     <td className="py-3 px-3">
@@ -218,13 +218,15 @@ export const VehiclesPage: React.FC = () => {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openEditModal(v)}
-                          className="p-1.5 text-[#5B3925] hover:bg-[#F3E8D7] rounded-lg transition-colors"
+                          className="p-1.5 text-[#5B3925] hover:bg-[#F3E8D7] rounded-lg hover:scale-125 active:scale-90 transition-all duration-150 shadow-none hover:shadow-sm"
+                          title="Edit vehicle"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(v.id)}
-                          className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg hover:scale-125 active:scale-90 transition-all duration-150 shadow-none hover:shadow-sm"
+                          title="Delete vehicle"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

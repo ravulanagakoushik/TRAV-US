@@ -47,3 +47,68 @@ body {
   border-radius: 0.75rem;
   z-index: 10;
 }
+
+/* ========================================================
+   Interactive Hover, Animation, Zoom, Scale & Shadow Effects
+   ======================================================== */
+
+/* Card Interactive Hover: Elevation + Scale + Warm Glow Shadow + Border Color Change */
+.card-hover-effect {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease-in-out,
+              background-color 0.25s ease-in-out;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-4px) scale(1.012);
+  box-shadow: 0 16px 36px -6px rgba(56, 36, 22, 0.16), 0 8px 16px -4px rgba(56, 36, 22, 0.08);
+  border-color: #A66B38;
+}
+
+/* Button Hover: Micro-zoom + Rich Drop Shadow + Scale Bounce */
+.btn-interactive {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s ease-in-out,
+              background-color 0.2s ease,
+              color 0.2s ease;
+}
+
+.btn-interactive:hover {
+  transform: translateY(-1.5px) scale(1.03);
+  box-shadow: 0 8px 22px -3px rgba(91, 57, 37, 0.30);
+}
+
+.btn-interactive:active {
+  transform: translateY(0.5px) scale(0.97);
+  box-shadow: 0 2px 6px rgba(91, 57, 37, 0.20);
+}
+
+/* Icon Zoom & Rotation on Parent Hover */
+.zoom-icon-hover {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.group:hover .zoom-icon-hover {
+  transform: scale(1.15) rotate(4deg);
+}
+
+/* Table Row Interactive Highlight */
+.table-row-hover {
+  transition: background-color 0.18s ease-in-out,
+              transform 0.18s ease-in-out,
+              box-shadow 0.18s ease-in-out;
+}
+
+.table-row-hover:hover {
+  background-color: rgba(243, 232, 215, 0.65);
+}
+
+/* Pulse Glow & Shimmer */
+.glow-on-hover {
+  transition: filter 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glow-on-hover:hover {
+  filter: drop-shadow(0 0 10px rgba(166, 107, 56, 0.4));
+}
